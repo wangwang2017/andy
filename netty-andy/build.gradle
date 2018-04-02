@@ -1,10 +1,12 @@
 apply plugin: 'com.android.library'
+apply plugin: 'com.github.dcendents.android-maven'
+
+group='com.github.wangwang2017'
 
 android {
     compileSdkVersion 26
     buildToolsVersion "26.0.2"
     defaultConfig {
-        //applicationId "com.yuyuehao.andy"
         minSdkVersion 11
         targetSdkVersion 26
         versionCode 1
