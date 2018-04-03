@@ -214,4 +214,16 @@ public class Verify {
             return true;
         }
     }
+
+    public static boolean isDomain(String name){
+        if (name.equals("")){
+            return false;
+        }
+        String pattern = "[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+\\.?";
+
+        Pattern r = Pattern.compile(pattern);
+        Matcher m = r.matcher(name);
+        boolean is = m.matches();
+        return is;
+    }
 }
