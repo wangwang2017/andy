@@ -61,6 +61,10 @@ public abstract class NettyActivity extends Activity{
         }
     }
 
+
+
+
+
     protected abstract void getStatusInfo(String json);
 
     protected abstract void getMessageInfo(String json);
