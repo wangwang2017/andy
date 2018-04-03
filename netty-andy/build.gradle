@@ -30,5 +30,5 @@ dependencies {
     compile files('libs/gson-2.2.4.jar')
     compile files('libs/netty-all-4.1.17.Final-sources.jar')
     compile files('libs/netty-all-4.1.17.Final.jar')
-    compile 'org.greenrobot:eventbus:3.1.1'
+    compile files('libs/eventbus-3.1.1.jar')
 }

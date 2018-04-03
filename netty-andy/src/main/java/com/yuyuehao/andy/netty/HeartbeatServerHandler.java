@@ -1,7 +1,5 @@
 package com.yuyuehao.andy.netty;
 
-import android.util.Log;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -35,7 +33,7 @@ public class HeartbeatServerHandler extends ChannelInboundHandlerAdapter {
             }
             ctx.writeAndFlush(HEARTBEAT_SEQUENCE.duplicate()).addListener(
                     ChannelFutureListener.CLOSE_ON_FAILURE);  // 3
-            Log.i("HeartbeatServerHandler" ,ctx.channel().remoteAddress()+"timeout：" + type);
+            //Log.i("HeartbeatServerHandler" ,ctx.channel().remoteAddress()+"timeout：" + type);
         } else {
             super.userEventTriggered(ctx, evt);
         }

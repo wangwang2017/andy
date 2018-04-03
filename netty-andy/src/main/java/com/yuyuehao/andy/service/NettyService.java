@@ -32,7 +32,6 @@ import io.netty.channel.ChannelFutureListener;
  */
 
 public class NettyService extends Service implements NettyListener {
-//    private WeakReference<Context> mContext;
     private NetworkReceiver receiver;
     private final IBinder binder = new MyBinder();
     @Override
@@ -56,8 +55,7 @@ public class NettyService extends Service implements NettyListener {
     @Override
     public boolean onUnbind(Intent intent) {
         NettyClient.getInstance().disconnect();
-        sendBroadcast(new Intent("com.yuyuehao.canise.receiver.nettyservice.destroy"));
-        LogUtils.write("NettyService",LogUtils.LEVEL_ERROR,"Service is unbind.",true);
+        LogUtils.write("NettyService",LogUtils.LEVEL_ERROR,"NettyService is unbind.",true);
         return super.onUnbind(intent);
     }
 
@@ -84,8 +82,8 @@ public class NettyService extends Service implements NettyListener {
         if (Verify.isJson(json)){
             EventBus.getDefault().post(new MessageEvent(0,json));
         }else{
-            LogUtils.write("NettyService",LogUtils.LEVEL_INFO,"receiver:is error json",true);
-            NettyClient.getInstance().sendMsgToServer("receiver:is error json", new ChannelFutureListener() {
+            LogUtils.write("NettyService",LogUtils.LEVEL_INFO,"Received an error json.",true);
+            NettyClient.getInstance().sendMsgToServer("Received an error json.", new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
 
@@ -112,10 +110,10 @@ public class NettyService extends Service implements NettyListener {
     public void onServiceStatusConnectChanged(int statusCode) {
         if (statusCode == NettyListener.STATUS_CONNECT_SUCCESS) {
             EventBus.getDefault().post(new MessageEvent(1,"ok"));
-            LogUtils.write("NettyService",LogUtils.LEVEL_INFO,"Connect Success",true);
+            LogUtils.write("NettyService",LogUtils.LEVEL_INFO,"---<<Connect Success>>---.",true);
         } else {
             EventBus.getDefault().post(new MessageEvent(1,"error"));
-            LogUtils.write("NettyService",LogUtils.LEVEL_INFO,"Connect Defeat",true);
+            LogUtils.write("NettyService",LogUtils.LEVEL_INFO,"---<<Connect Defeat>>---",true);
 
         }
     }
@@ -128,7 +126,7 @@ public class NettyService extends Service implements NettyListener {
                 if (NetworkInfo.State.CONNECTED == info.getState()) {
                     connect();
                 } else {
-                    LogUtils.write("NettyService",LogUtils.LEVEL_ERROR,"Network is disconnect.",true);
+                    LogUtils.write("NettyService",LogUtils.LEVEL_ERROR,"Network is Disconnect.",true);
                     NettyClient.getInstance().disconnect();
                 }
             }
@@ -141,11 +139,9 @@ public class NettyService extends Service implements NettyListener {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        unregisterReceiver(receiver);
         NettyClient.getInstance().setReconnectNum(0);
-        LogUtils.write("NettyService",LogUtils.LEVEL_ERROR,"Service is destroy,disconnect.",true);
+        LogUtils.write("NettyService",LogUtils.LEVEL_ERROR,"NettyService is destroy,disconnect.",true);
         NettyClient.getInstance().disconnect();
-        sendBroadcast(new Intent("com.yuyuehao.canise.receiver.nettyservice.destroy"));
     }
 
 }

@@ -72,7 +72,7 @@ public class NettyClient {
                             mChannel = future.channel();
 
                         }else{
-                            LogUtils.write("NettyClient",LogUtils.LEVEL_ERROR,"Future chanel is default",true);
+                            LogUtils.write("NettyClient",LogUtils.LEVEL_ERROR,"Future chanel is close,so disconnect.",true);
                             disconnect();
                             isConnect = false;
                         }
@@ -105,11 +105,11 @@ public class NettyClient {
             }catch (InterruptedException e){
                 e.printStackTrace();
             }
-            LogUtils.write("NettyClient",LogUtils.LEVEL_INFO,"reconnect",true);
+            LogUtils.write("NettyClient",LogUtils.LEVEL_INFO,"Reconnect.",true);
             disconnect();
             connect();
         }else{
-            LogUtils.write("NettyClient",LogUtils.LEVEL_ERROR,"NettyClient is not reconnect number,disconnect.",true);
+            LogUtils.write("NettyClient",LogUtils.LEVEL_ERROR,"NettyClient is not reconnect number,so disconnect.",true);
             disconnect();
         }
     }

@@ -168,7 +168,7 @@ public class LogUtils {
     initLog();
     FileWriter fw=null;
     try {
-      fw=new FileWriter(DIR + "/canise-log" + new SimpleDateFormat("yyyy-MM-dd").format(new Date()) + ".txt",true);
+      fw=new FileWriter(DIR + "/andy-log" + new SimpleDateFormat("yyyy-MM-dd").format(new Date()) + ".txt",true);
       if(seq) {
         fw.write("\n\r-------------------------------\r\n");
       }
@@ -186,7 +186,7 @@ public class LogUtils {
   }
 
   private static void initLog() {
-    File file=new File(DIR + "/canise-log" + new SimpleDateFormat("yyyy-MM-dd").format(new Date()) + ".txt");
+    File file=new File(DIR + "/andy-log" + new SimpleDateFormat("yyyy-MM-dd").format(new Date()) + ".txt");
     Calendar last= Calendar.getInstance();
     last.setTimeInMillis(file.lastModified());
     Calendar now= Calendar.getInstance();
@@ -200,7 +200,7 @@ public class LogUtils {
       System.out.println("log.txt reload");
       FileWriter fw=null;
       try {
-        fw=new FileWriter(DIR + "/canise-log" + new SimpleDateFormat("yyyy-MM-dd").format(new Date()) + ".txt",false);
+        fw=new FileWriter(DIR + "/andy-log" + new SimpleDateFormat("yyyy-MM-dd").format(new Date()) + ".txt",false);
         fw.write("");
         fw.flush();
         fw.close();
@@ -216,26 +216,4 @@ public class LogUtils {
     }
   }
 
-  /**
-   * 清理日志
-   */
-  public static void clearlog(int preday){
-    try{
-      File _path=new File(DIR);
-      if(_path.exists()&&_path.isDirectory()){
-        Calendar c= Calendar.getInstance();
-        c.setTime(new Date());
-        c.add(Calendar.DATE, preday*-1);
-        File[] _files=_path.listFiles();
-        for(File _f:_files){
-          if(_f.lastModified()<c.getTimeInMillis()){
-            System.out.println("删除"+preday+"天之前的app监控日志！");
-            _f.delete();
-          }
-        }
-      }
-    }catch(Exception e){
-      e.printStackTrace();
-    }
-  }
 }
