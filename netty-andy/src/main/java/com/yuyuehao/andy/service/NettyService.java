@@ -140,6 +140,7 @@ public class NettyService extends Service implements NettyListener {
     public void onDestroy() {
         super.onDestroy();
         NettyClient.getInstance().setReconnectNum(0);
+        unregisterReceiver(receiver);
         LogUtils.write("NettyService",LogUtils.LEVEL_ERROR,"NettyService is destroy,disconnect.",true);
         NettyClient.getInstance().disconnect();
     }
