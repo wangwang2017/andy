@@ -78,11 +78,13 @@ public class NettyService extends Service implements NettyListener {
     public void onMessageResponse(ByteBuf data) {
         String json = null;
         json = data.toString(Charset.forName(NettyClient.getInstance().getCharSet()));
-        LogUtils.write("NettyService",LogUtils.LEVEL_INFO,"receiver:"+json,true);
+        LogUtils.write("NettyService",LogUtils.LEVEL_INFO,"receiver one json",true);
         if (Verify.isJson(json)){
             EventBus.getDefault().post(new MessageEvent(0,json));
+        } else if(json.equals("\n") || json.equals("\r") || json.equals("\n\r") || json.equals("")){
+
         }else{
-            LogUtils.write("NettyService",LogUtils.LEVEL_INFO,"Received an error json.",true);
+            LogUtils.write("NettyService", LogUtils.LEVEL_INFO, "Received an error json.", true);
             NettyClient.getInstance().sendMsgToServer("Received an error json.", new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
@@ -90,7 +92,6 @@ public class NettyService extends Service implements NettyListener {
                 }
             });
         }
-
     }
 
     private void connect(){
@@ -110,11 +111,8 @@ public class NettyService extends Service implements NettyListener {
     public void onServiceStatusConnectChanged(int statusCode) {
         if (statusCode == NettyListener.STATUS_CONNECT_SUCCESS) {
             EventBus.getDefault().post(new MessageEvent(1,"ok"));
-            LogUtils.write("NettyService",LogUtils.LEVEL_INFO,"---<<Connect Success>>---.",true);
         } else {
             EventBus.getDefault().post(new MessageEvent(1,"error"));
-            LogUtils.write("NettyService",LogUtils.LEVEL_INFO,"---<<Connect Defeat>>---",true);
-
         }
     }
 
@@ -142,7 +140,7 @@ public class NettyService extends Service implements NettyListener {
         NettyClient.getInstance().setReconnectNum(0);
         unregisterReceiver(receiver);
         LogUtils.write("NettyService",LogUtils.LEVEL_ERROR,"NettyService is destroy,disconnect.",true);
-        NettyClient.getInstance().disconnect();
+        NettyClient.getInstance().shutDown();
     }
 
 }

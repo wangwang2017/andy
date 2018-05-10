@@ -12,13 +12,15 @@ import io.netty.channel.SimpleChannelInboundHandler;
 public class NettyClientHandler extends SimpleChannelInboundHandler<ByteBuf> {
 
     private NettyListener listener;
-    private int datasize = 0;
-    private byte[] realByte = new byte[1024*32];
+
 
 
     public NettyClientHandler(NettyListener listener){
         this.listener = listener;
     }
+
+
+
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
@@ -44,6 +46,7 @@ public class NettyClientHandler extends SimpleChannelInboundHandler<ByteBuf> {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         super.exceptionCaught(ctx, cause);
         ctx.close();
+        NettyClient.getInstance().disconnect();
         cause.printStackTrace();
     }
 }

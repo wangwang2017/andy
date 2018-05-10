@@ -24,7 +24,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 public class NettyClient {
 
     private static NettyClient nettyClient = null;
-    private EventLoopGroup mEventLoopGroup;
+    private EventLoopGroup mEventLoopGroup = null;
     private NettyListener mNettyListener;
     private Channel mChannel;
     private boolean isConnect = false;
@@ -32,7 +32,7 @@ public class NettyClient {
     private int reconnectNum = Integer.MAX_VALUE;
     private long reconnectIntervalTime = 5000;
     private int port;
-    private Bootstrap mBootstrap;
+    private Bootstrap mBootstrap = null;
     private String charSet;
 
     public static synchronized NettyClient getInstance(String host,int port,String charSet){
@@ -57,20 +57,22 @@ public class NettyClient {
 
     public synchronized NettyClient connect(){
         if (!isConnect){
-            mEventLoopGroup = new NioEventLoopGroup();
-            mBootstrap = new Bootstrap().group(mEventLoopGroup)
-                    .option(ChannelOption.SO_KEEPALIVE,true)
-                    .channel(NioSocketChannel.class)
-                    .handler(new NettyClientInitializer(mNettyListener));
+            if (mEventLoopGroup == null){
+                mEventLoopGroup = new NioEventLoopGroup();
+            }
+            if (mBootstrap == null) {
+                mBootstrap = new Bootstrap().group(mEventLoopGroup)
+                        .option(ChannelOption.SO_KEEPALIVE, true)
+                        .channel(NioSocketChannel.class)
+                        .handler(new NettyClientInitializer(mNettyListener));
+            }
             try{
-
                  mBootstrap.connect(host,port).addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
                         if (future.isSuccess()){
                             isConnect = true;
                             mChannel = future.channel();
-
                         }else{
                             LogUtils.write("NettyClient",LogUtils.LEVEL_ERROR,"Future chanel is close,so disconnect.",true);
                             disconnect();
@@ -78,8 +80,6 @@ public class NettyClient {
                         }
                     }
                 }).sync();
-
-
             }catch (Exception e){
                 e.printStackTrace();
                 mNettyListener.onServiceStatusConnectChanged(NettyListener.STATUS_CONNECT_ERROR);
@@ -90,9 +90,15 @@ public class NettyClient {
     }
 
     public void disconnect() {
+        if (mChannel != null){
+            mChannel.disconnect();
+            mChannel.close();
+        }
+    }
+
+    public void shutDown(){
         if (mEventLoopGroup != null){
             mEventLoopGroup.shutdownGracefully();
-            mEventLoopGroup = null;
             mBootstrap = null;
         }
     }
@@ -111,6 +117,9 @@ public class NettyClient {
         }else{
             LogUtils.write("NettyClient",LogUtils.LEVEL_ERROR,"NettyClient is not reconnect number,so disconnect.",true);
             disconnect();
+            if (mEventLoopGroup != null){
+                mEventLoopGroup.shutdownGracefully();
+            }
         }
     }
 
