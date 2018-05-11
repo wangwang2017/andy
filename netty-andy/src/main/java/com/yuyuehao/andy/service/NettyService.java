@@ -8,11 +8,14 @@ import android.content.IntentFilter;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
+import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.IBinder;
+import android.util.Log;
 
 import com.yuyuehao.andy.netty.NettyClient;
 import com.yuyuehao.andy.netty.NettyListener;
+import com.yuyuehao.andy.utils.IpNetAddress;
 import com.yuyuehao.andy.utils.LogUtils;
 import com.yuyuehao.andy.utils.MessageEvent;
 import com.yuyuehao.andy.utils.Verify;
@@ -34,6 +37,9 @@ import io.netty.channel.ChannelFutureListener;
 public class NettyService extends Service implements NettyListener {
     private NetworkReceiver receiver;
     private final IBinder binder = new MyBinder();
+    private String ip;
+    private Task task;
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -43,6 +49,8 @@ public class NettyService extends Service implements NettyListener {
         filter.addAction(String.valueOf(ConnectivityManager.TYPE_ETHERNET));
         filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
         registerReceiver(receiver, filter);
+        task = new Task();
+        task.execute("http://ip.6655.com/ip.aspx");
     }
 
 
@@ -78,14 +86,13 @@ public class NettyService extends Service implements NettyListener {
     public void onMessageResponse(ByteBuf data) {
         String json = null;
         json = data.toString(Charset.forName(NettyClient.getInstance().getCharSet()));
-        LogUtils.write("NettyService",LogUtils.LEVEL_INFO,"receiver one json",true);
         if (Verify.isJson(json)){
             EventBus.getDefault().post(new MessageEvent(0,json));
         } else if(json.equals("\n") || json.equals("\r") || json.equals("\n\r") || json.equals("")){
 
         }else{
-            LogUtils.write("NettyService", LogUtils.LEVEL_INFO, "Received an error json.", true);
-            NettyClient.getInstance().sendMsgToServer("Received an error json.", new ChannelFutureListener() {
+            LogUtils.write("NettyService", LogUtils.LEVEL_ERROR, "Error Json:"+json, true);
+            NettyClient.getInstance().sendMsgToServer("{\"error\":\"bad_request\"}", new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
 
@@ -131,7 +138,29 @@ public class NettyService extends Service implements NettyListener {
         }
     }
 
+    class Task extends AsyncTask<String, Integer, String>{
 
+
+        @Override
+        protected String doInBackground(String... params) {
+            return  IpNetAddress.getNetIp(params[0]);
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            if (s != null && !s.equals("undefined")){
+                Log.d("NettyServer","ip:"+s);
+               EventBus.getDefault().post(new MessageEvent(2,s));
+            }
+        }
+
+
+
+        @Override
+        protected void onCancelled() {
+            super.onCancelled();
+        }
+    }
 
 
     @Override
@@ -141,6 +170,7 @@ public class NettyService extends Service implements NettyListener {
         unregisterReceiver(receiver);
         LogUtils.write("NettyService",LogUtils.LEVEL_ERROR,"NettyService is destroy,disconnect.",true);
         NettyClient.getInstance().shutDown();
+        task.onCancelled();
     }
 
 }

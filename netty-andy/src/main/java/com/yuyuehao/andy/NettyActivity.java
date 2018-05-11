@@ -19,7 +19,7 @@ import org.greenrobot.eventbus.ThreadMode;
  * on 2018-04-02
  */
 
-public abstract class NettyActivity extends Activity{
+public abstract class NettyActivity extends Activity {
 
     private NettyService mNettyService;
 
@@ -43,6 +43,9 @@ public abstract class NettyActivity extends Activity{
         toBind();
     }
 
+
+
+
     private void toBind(){
         Intent bindIntent = new Intent(NettyActivity.this,NettyService.class);
         bindService(bindIntent, mServiceConnection, BIND_AUTO_CREATE);
@@ -58,12 +61,12 @@ public abstract class NettyActivity extends Activity{
             getMessageInfo(json);
         }else if (messageEvent.getType() == 1){
             getStatusInfo(json);
+        }else if (messageEvent.getType() ==2){
+            getPublicNetWorkIp(json);
         }
     }
 
-
-
-
+    protected abstract void getPublicNetWorkIp(String json);
 
     protected abstract void getStatusInfo(String json);
 
