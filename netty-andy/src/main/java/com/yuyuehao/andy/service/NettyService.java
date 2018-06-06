@@ -1,27 +1,21 @@
 package com.yuyuehao.andy.service;
 
 import android.app.Service;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
-import android.os.Binder;
 import android.os.IBinder;
-import android.util.Log;
 
 import com.yuyuehao.andy.netty.NettyClient;
 import com.yuyuehao.andy.netty.NettyListener;
+import com.yuyuehao.andy.utils.Const;
 import com.yuyuehao.andy.utils.IpNetAddress;
 import com.yuyuehao.andy.utils.LogUtils;
-import com.yuyuehao.andy.utils.MessageEvent;
 import com.yuyuehao.andy.utils.Verify;
 
-import org.greenrobot.eventbus.EventBus;
-
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.Charset;
 
 import io.netty.buffer.ByteBuf;
@@ -34,52 +28,49 @@ import io.netty.channel.ChannelFutureListener;
  * on 2017-11-24
  */
 
-public class NettyService extends Service implements NettyListener {
-    private NetworkReceiver receiver;
-    private final IBinder binder = new MyBinder();
-    private String ip;
+public abstract class NettyService extends Service implements NettyListener {
+
     private Task task;
+    public  String packageName;
+
+
 
     @Override
     public void onCreate() {
         super.onCreate();
-        receiver = new NetworkReceiver();
-        IntentFilter filter=new IntentFilter();
-        filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
-        filter.addAction(String.valueOf(ConnectivityManager.TYPE_ETHERNET));
-        filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
-        registerReceiver(receiver, filter);
-        task = new Task();
-        task.execute("http://ip.6655.com/ip.aspx");
+        setTCP_Params(60,15,4);
+    }
+
+    private void setTCP_Params(int keepidlte,int keepintvl,int keepcnt){
+        if (keepidlte >0 && keepcnt>0 && keepcnt>0) {
+            suExecWait("echo " + keepidlte + " > /proc/sys/net/ipv4/tcp_keepalive_time\n", null);
+            suExecWait("echo " + keepintvl + " > /proc/sys/net/ipv4/tcp_keepalive_intvl\n", null);
+            suExecWait("echo " + keepcnt + " > /proc/sys/net/ipv4/tcp_keepalive_probes\n", null);
+        }
+        LogUtils.write(Const.Tag, LogUtils.LEVEL_INFO,"TCP_KEEPIDLTE:"+suExecWait("cat /proc/sys/net/ipv4/tcp_keepalive_time\n",null),true);
+        LogUtils.write(Const.Tag, LogUtils.LEVEL_INFO,"TCP_KEEPINTVL:"+suExecWait("cat /proc/sys/net/ipv4/tcp_keepalive_intvl\n",null),true);
+        LogUtils.write(Const.Tag, LogUtils.LEVEL_INFO,"TCP_KEEPCNT:"+suExecWait("cat /proc/sys/net/ipv4/tcp_keepalive_probes\n",null),true);
     }
 
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        task = new Task();
+        task.execute("http://ip.6655.com/ip.aspx");
+        init();
+        NettyClient.getInstance().setListener(this);
+        packageName = NettyClient.getInstance().getPackageName();
+        connect();
         return START_STICKY;
     }
 
-
-    @Override
-    public boolean onUnbind(Intent intent) {
-        NettyClient.getInstance().disconnect();
-        LogUtils.write("NettyService",LogUtils.LEVEL_ERROR,"NettyService is unbind.",true);
-        return super.onUnbind(intent);
-    }
-
-
-    public class MyBinder extends Binder {
-        public NettyService getService(){
-            return NettyService.this;
-        }
-    }
+    protected abstract void init();
 
 
     @Override
     public IBinder onBind(Intent intent) {
-        NettyClient.getInstance().setListener(this);
-        connect();
-        return binder;
+
+        return null;
     }
 
     @Override
@@ -87,11 +78,11 @@ public class NettyService extends Service implements NettyListener {
         String json = null;
         json = data.toString(Charset.forName(NettyClient.getInstance().getCharSet()));
         if (Verify.isJson(json)){
-            EventBus.getDefault().post(new MessageEvent(0,json));
+            getMessageInfo(json);
         } else if(json.equals("\n") || json.equals("\r") || json.equals("\n\r") || json.equals("")){
 
         }else{
-            LogUtils.write("NettyService", LogUtils.LEVEL_ERROR, "Error Json:"+json, true);
+            LogUtils.write(Const.Tag, LogUtils.LEVEL_ERROR, packageName+":Error Json,"+json, true);
             NettyClient.getInstance().sendMsgToServer("{\"error\":\"bad_request\"}", new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
@@ -100,6 +91,8 @@ public class NettyService extends Service implements NettyListener {
             });
         }
     }
+
+    protected abstract void getMessageInfo(String json);
 
     private void connect(){
         if (!NettyClient.getInstance().getConnectStatus()) {
@@ -110,33 +103,21 @@ public class NettyService extends Service implements NettyListener {
                 }
             }).start();
         }
+
+
     }
 
 
 
     @Override
     public void onServiceStatusConnectChanged(int statusCode) {
-        if (statusCode == NettyListener.STATUS_CONNECT_SUCCESS) {
-            EventBus.getDefault().post(new MessageEvent(1,"ok"));
-        } else {
-            EventBus.getDefault().post(new MessageEvent(1,"error"));
-        }
+        getStatusInfo(statusCode);
+        
     }
 
-    public class NetworkReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (ConnectivityManager.CONNECTIVITY_ACTION.equals(intent.getAction())) {
-                NetworkInfo info = intent.getParcelableExtra(ConnectivityManager.EXTRA_NETWORK_INFO);
-                if (NetworkInfo.State.CONNECTED == info.getState()) {
-                    connect();
-                } else {
-                    LogUtils.write("NettyService",LogUtils.LEVEL_ERROR,"Network is Disconnect.",true);
-                    NettyClient.getInstance().disconnect();
-                }
-            }
-        }
-    }
+    protected abstract void getStatusInfo(int statusCode);
+
+
 
     class Task extends AsyncTask<String, Integer, String>{
 
@@ -148,9 +129,8 @@ public class NettyService extends Service implements NettyListener {
 
         @Override
         protected void onPostExecute(String s) {
-            if (s != null && !s.equals("undefined")){
-                Log.d("NettyServer","ip:"+s);
-               EventBus.getDefault().post(new MessageEvent(2,s));
+            if (s != null && !s.equals("undefined")) {
+                getPublicNetWorkIp(s);
             }
         }
 
@@ -162,13 +142,66 @@ public class NettyService extends Service implements NettyListener {
         }
     }
 
+    protected abstract void getPublicNetWorkIp(String s);
+
+
+
+    private static String suExecWait(String cmd, File file){
+        if (cmd == null || (cmd = cmd.trim()).length() ==0){
+            return null;
+        }
+        if (file == null){
+            file = new File("/");
+        }
+        OutputStream out = null;
+        InputStream in = null;
+        InputStream err = null;
+        try {
+            Runtime runtime = Runtime.getRuntime();
+            Process process = runtime.exec("su",null,file);
+            StringBuffer inString = new StringBuffer();
+            StringBuffer errString = new StringBuffer();
+            out = process.getOutputStream();
+
+            out.write(cmd.endsWith("\n") ? cmd.getBytes():(cmd+"\n").getBytes());
+            out.write(new byte[]{'e','x','i','t','\n'});
+
+            in = process.getInputStream();
+            err = process.getErrorStream();
+
+            process.waitFor();
+
+            while(in.available()>0){
+                inString.append((char)in.read());
+            }
+            while(err.available()>0){
+                errString.append((char)err.read());
+            }
+            return  inString.toString();
+        }catch (Exception e){
+            return null;
+        }finally {
+            try {
+                if(out != null) {
+                    out.close();
+                }
+                if (in != null){
+                    in.close();
+                }
+                if (err != null) {
+                    err.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        NettyClient.getInstance().setReconnectNum(0);
-        unregisterReceiver(receiver);
-        LogUtils.write("NettyService",LogUtils.LEVEL_ERROR,"NettyService is destroy,disconnect.",true);
+        LogUtils.write(Const.Tag,LogUtils.LEVEL_ERROR,packageName+":NettyService is destroy,disconnect.",true);
         NettyClient.getInstance().shutDown();
         task.onCancelled();
     }

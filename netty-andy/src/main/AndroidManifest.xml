@@ -22,7 +22,6 @@
             android:exported="false">
         </service>
 
-        <activity android:name=".NettyActivity"/>
     </application>
 
 </manifest>

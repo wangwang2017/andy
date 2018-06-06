@@ -1,6 +1,7 @@
 package com.yuyuehao.andy.netty;
 
 
+import com.yuyuehao.andy.utils.Const;
 import com.yuyuehao.andy.utils.LogUtils;
 
 import java.io.UnsupportedEncodingException;
@@ -11,10 +12,14 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
+import io.netty.util.HashedWheelTimer;
 
 /**
  * Created by Wang
@@ -24,24 +29,28 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 public class NettyClient {
 
     private static NettyClient nettyClient = null;
-    private EventLoopGroup mEventLoopGroup = null;
     private NettyListener mNettyListener;
-    private Channel mChannel;
     private boolean isConnect = false;
     private String host;
     private int reconnectNum = Integer.MAX_VALUE;
     private long reconnectIntervalTime = 5000;
     private int port;
-    private Bootstrap mBootstrap = null;
     private String charSet;
+    private String packageName;
+    private Bootstrap mBootstrap;
+    protected final HashedWheelTimer timer = new HashedWheelTimer();
+    private NioEventLoopGroup mEventLoopGroup;
+    private Channel mChannel = null;
+    private ChannelFuture future;
 
-    public static synchronized NettyClient getInstance(String host,int port,String charSet){
+    public static synchronized NettyClient getInstance(String host,int port,String charSet,String packageName){
         if (nettyClient == null){
             nettyClient = new NettyClient();
         }
         nettyClient.host = host;
         nettyClient.port = port;
         nettyClient.charSet = charSet;
+        nettyClient.packageName = packageName;
         return nettyClient;
     }
 
@@ -52,94 +61,89 @@ public class NettyClient {
         nettyClient.host = nettyClient.getHost();
         nettyClient.port = nettyClient.getPort();
         nettyClient.charSet = nettyClient.getCharSet();
+        nettyClient.packageName = nettyClient.getPackageName();
         return nettyClient;
     }
 
-    public synchronized NettyClient connect(){
-        if (!isConnect){
-            if (mEventLoopGroup == null){
-                mEventLoopGroup = new NioEventLoopGroup();
-            }
-            if (mBootstrap == null) {
-                mBootstrap = new Bootstrap().group(mEventLoopGroup)
-                        .option(ChannelOption.SO_KEEPALIVE, true)
-                        .channel(NioSocketChannel.class)
-                        .handler(new NettyClientInitializer(mNettyListener));
-            }
-            try{
-                 mBootstrap.connect(host,port).addListener(new ChannelFutureListener() {
+    public void initBootstrap(){
+        LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,packageName+":初始化",true);
+        if (mEventLoopGroup == null) {
+            mEventLoopGroup = new NioEventLoopGroup();
+            mBootstrap = new Bootstrap();
+            mBootstrap.group(mEventLoopGroup)
+                    .option(ChannelOption.SO_KEEPALIVE, true)
+                    .option(ChannelOption.TCP_NODELAY, true)
+                    .channel(NioSocketChannel.class)
+                    .handler(new LoggingHandler(LogLevel.INFO));
+        }
+    }
+
+    public void connect(){
+        try {
+            LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,packageName+":开始连接",true);
+            final ConnectionWatchdog watchdog = new ConnectionWatchdog(mBootstrap,timer,port,host,true) {
+                @Override
+                public ChannelHandler[] handlers() {
+                    return new ChannelHandler[]{
+                            this,
+                            new NettyClientInitializer(mNettyListener)
+                    };
+                }
+            };
+            ChannelFuture mChannelFuture;
+            synchronized (mBootstrap){
+                mBootstrap.handler(new ChannelInitializer<Channel>() {
                     @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        if (future.isSuccess()){
-                            isConnect = true;
-                            mChannel = future.channel();
-                        }else{
-                            LogUtils.write("NettyClient",LogUtils.LEVEL_ERROR,"Future chanel is close,so disconnect.",true);
-                            disconnect();
-                            isConnect = false;
-                        }
+                    protected void initChannel(Channel channel) throws Exception {
+                        channel.pipeline().addLast(watchdog.handlers());
                     }
-                }).sync();
-            }catch (Exception e){
-                e.printStackTrace();
-                mNettyListener.onServiceStatusConnectChanged(NettyListener.STATUS_CONNECT_ERROR);
-                reconnect();
+                });
+                mChannelFuture = mBootstrap.connect(host,port);
             }
-        }
-        return this;
-    }
-
-    public void disconnect() {
-        if (mChannel != null){
-            mChannel.disconnect();
-            mChannel.close();
+            mChannelFuture.sync();
+            setFuture(mChannelFuture);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
-    public void shutDown(){
-        if (mEventLoopGroup != null){
+    public void closeConnection(){
+        if (future != null && future.isSuccess()) {
+            future.channel().close();
+        }
+    }
+
+    public void shutDown() {
+        LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,packageName+":断开连接",true);
+        if(mEventLoopGroup != null) {
             mEventLoopGroup.shutdownGracefully();
-            mBootstrap = null;
+            mEventLoopGroup = null;
         }
     }
 
-    public void reconnect(){
-        if (reconnectNum >0 && !isConnect){
-            reconnectNum--;
-            try{
-                Thread.sleep(reconnectIntervalTime);
-            }catch (InterruptedException e){
-                e.printStackTrace();
-            }
-            LogUtils.write("NettyClient",LogUtils.LEVEL_INFO,"Reconnect.",true);
-            disconnect();
-            connect();
-        }else{
-            LogUtils.write("NettyClient",LogUtils.LEVEL_ERROR,"NettyClient is not reconnect number,so disconnect.",true);
-            disconnect();
-            if (mEventLoopGroup != null){
-                mEventLoopGroup.shutdownGracefully();
-            }
-        }
-    }
+
 
     public boolean sendMsgToServer(String json, ChannelFutureListener listener){
         StringBuffer sb = new StringBuffer(json);
         sb.append("\n");
         String realJson = sb.toString();
-        boolean flag = mChannel != null && isConnect;
+        boolean flag = future != null;
         if (flag){
             ByteBuf buf = null;
             try {
                 byte[] data = realJson.getBytes(charSet);
                 buf = Unpooled.copiedBuffer(data);
-                mChannel.writeAndFlush(buf).addListener(listener);
+                if (future.channel().isWritable()) {
+                    future.channel().writeAndFlush(buf).addListener(listener);
+                }
             } catch (UnsupportedEncodingException e) {
                 buf.release();
             }
         }
         return flag;
     }
+
+
 
     public void setHost(String host){
         this.host = host;
@@ -161,8 +165,13 @@ public class NettyClient {
         this.reconnectNum = reconnectNum;
     }
 
+
     public void setReconnectIntervalTime(long reconnectIntervalTime){
         this.reconnectIntervalTime = reconnectIntervalTime;
+    }
+
+    public void setFuture(ChannelFuture future) {
+        this.future = future;
     }
 
     public boolean getConnectStatus(){
@@ -183,5 +192,13 @@ public class NettyClient {
 
     public void setCharSet(String charSet) {
         this.charSet = charSet;
+    }
+
+    public String getPackageName() {
+        return packageName;
+    }
+
+    public void setPackageName(String packageName) {
+        this.packageName = packageName;
     }
 }

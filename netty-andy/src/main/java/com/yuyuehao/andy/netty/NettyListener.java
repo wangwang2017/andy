@@ -21,6 +21,8 @@ public interface NettyListener {
      */
     void onMessageResponse(ByteBuf data);
 
+
+
     /**
      * 当服务状态发生变化时触发
      */
