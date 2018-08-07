@@ -42,6 +42,7 @@ public class NettyClient {
     private NioEventLoopGroup mEventLoopGroup;
     private Channel mChannel = null;
     private ChannelFuture future;
+    private  ConnectionWatchdog watchdog;
 
     public static synchronized NettyClient getInstance(String host,int port,String charSet,String packageName){
         if (nettyClient == null){
@@ -66,31 +67,31 @@ public class NettyClient {
     }
 
     public void initBootstrap(){
-        LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,packageName+":初始化",true);
+        LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,packageName+":初始化|"+host+":"+port,true);
         if (mEventLoopGroup == null) {
             mEventLoopGroup = new NioEventLoopGroup();
             mBootstrap = new Bootstrap();
             mBootstrap.group(mEventLoopGroup)
                     .option(ChannelOption.SO_KEEPALIVE, true)
                     .option(ChannelOption.TCP_NODELAY, true)
-                    .channel(NioSocketChannel.class)
-                    .handler(new LoggingHandler(LogLevel.INFO));
-        }
-    }
-
-    public void connect(){
-        try {
-            LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,packageName+":开始连接",true);
-            final ConnectionWatchdog watchdog = new ConnectionWatchdog(mBootstrap,timer,port,host,true) {
+                    .channel(NioSocketChannel.class);
+            watchdog = new ConnectionWatchdog(mBootstrap,timer,port,host,true) {
                 @Override
                 public ChannelHandler[] handlers() {
                     return new ChannelHandler[]{
                             this,
+                            new LoggingHandler(LogLevel.INFO),
                             new NettyClientInitializer(mNettyListener)
                     };
                 }
             };
-            ChannelFuture mChannelFuture;
+        }
+    }
+
+    public void connect(){
+        ChannelFuture mChannelFuture = null;
+        try {
+            LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,packageName+":开始连接|"+host+":"+port,true);
             synchronized (mBootstrap){
                 mBootstrap.handler(new ChannelInitializer<Channel>() {
                     @Override
@@ -103,18 +104,24 @@ public class NettyClient {
             mChannelFuture.sync();
             setFuture(mChannelFuture);
         } catch (Exception e) {
-            e.printStackTrace();
+            LogUtils.write(Const.Tag,LogUtils.LEVEL_ERROR,packageName+",Exception|"+host+":"+port+"|{"+e.toString()+"}",true);
+            if (mChannelFuture != null){
+                mChannelFuture.channel().closeFuture();
+            }
+            watchdog.startTimeout();
         }
     }
 
+
+
     public void closeConnection(){
         if (future != null && future.isSuccess()) {
-            future.channel().close();
+            future.channel().closeFuture();
         }
     }
 
     public void shutDown() {
-        LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,packageName+":断开连接",true);
+        LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,packageName+":断开连接|"+host+":"+port,true);
         if(mEventLoopGroup != null) {
             mEventLoopGroup.shutdownGracefully();
             mEventLoopGroup = null;

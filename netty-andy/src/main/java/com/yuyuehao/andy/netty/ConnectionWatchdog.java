@@ -30,7 +30,7 @@ public abstract class ConnectionWatchdog extends ChannelInboundHandlerAdapter im
     private final int port;
     private final String host;
     private volatile boolean reconnect = true;
-    private boolean attempts;
+
 
 
     public ConnectionWatchdog(Bootstrap bootstrap, Timer timer, int port, String host, boolean reconnect) {
@@ -44,32 +44,41 @@ public abstract class ConnectionWatchdog extends ChannelInboundHandlerAdapter im
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,NettyClient.getInstance().getPackageName()+":连接成功",true);
-        attempts = true;
+        LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,NettyClient.getInstance().getPackageName()+":连接成功|"+host+":"+port,true);
         ctx.fireChannelActive();
     }
 
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,NettyClient.getInstance().getPackageName()+":连接失败",true);
-        attempts = false;
+        LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,NettyClient.getInstance().getPackageName()+":连接失败|"+host+":"+port,true);
         ctx.fireChannelInactive();
         if (reconnect){
-            LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,NettyClient.getInstance().getPackageName()+":重新开始连接",true);
-            if (!attempts){
-                int timeout = 15;
-                mTimer.newTimeout(this,timeout, TimeUnit.SECONDS);
-            }
+            startTimeout();
         }
+    }
+
+    @Override
+    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+        super.channelRegistered(ctx);
+    }
+
+    @Override
+    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+        super.channelUnregistered(ctx);
     }
 
 
 
+    public void startTimeout(){
+        LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,NettyClient.getInstance().getPackageName()+":重新开始连接|"+host+":"+port,true);
+        mTimer.newTimeout(this,15, TimeUnit.SECONDS);
+    }
+
 
     @Override
     public void run(Timeout timeout) throws Exception {
-        ChannelFuture future;
+        final ChannelFuture future;
         synchronized (mBootstrap){
             mBootstrap.handler(new ChannelInitializer<Channel>() {
                 @Override
@@ -83,12 +92,15 @@ public abstract class ConnectionWatchdog extends ChannelInboundHandlerAdapter im
             @Override
             public void operationComplete(ChannelFuture channelFuture) throws Exception {
                 if (channelFuture.isSuccess()){
-                    LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,NettyClient.getInstance().getPackageName()+":重新连接成功",true);
+                    LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,NettyClient.getInstance().getPackageName()+":重新连接成功|"+host+":"+port,true);
                     NettyClient.getInstance().setFuture(channelFuture);
                 }else{
-                    channelFuture.channel().pipeline().fireChannelInactive();
+                    LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,NettyClient.getInstance().getPackageName()+":重新连接失败|"+host+":"+port,true);
+                    future.channel().closeFuture();
+                    startTimeout();
                 }
             }
         });
     }
+
 }

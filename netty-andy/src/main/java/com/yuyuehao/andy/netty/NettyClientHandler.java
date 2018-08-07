@@ -5,9 +5,12 @@ import com.yuyuehao.andy.utils.LogUtils;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.handler.timeout.IdleState;
+import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.CharsetUtil;
 
 /**
@@ -55,13 +58,23 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        super.exceptionCaught(ctx, cause);
-        ctx.close();
         NettyClient.getInstance().setConnectStatus(false);
         listener.onServiceStatusConnectChanged(NettyListener.STATUS_CONNECT_ERROR);
-        LogUtils.write(Const.Tag,LogUtils.LEVEL_ERROR,NettyClient.getInstance().getPackageName()+":"+cause.toString(),true);
+        LogUtils.write(Const.Tag,LogUtils.LEVEL_ERROR,NettyClient.getInstance().getPackageName()+",Exception|"+NettyClient.getInstance().getHost()+
+                ":"+NettyClient.getInstance().getPort()+"|{"+cause.getMessage()+"}",true);
+        ctx.channel().closeFuture();
     }
 
-
-
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        if (evt instanceof IdleStateEvent) {
+            IdleStateEvent event = (IdleStateEvent) evt;
+            if (event.state() == IdleState.READER_IDLE) {
+                ctx.writeAndFlush(HEARTBEAT_SEQUENCE.duplicate()).addListener(
+                        ChannelFutureListener.CLOSE_ON_FAILURE);
+            }
+        } else {
+            super.userEventTriggered(ctx, evt);
+        }
+    }
 }
