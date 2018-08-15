@@ -7,6 +7,7 @@ import com.yuyuehao.andy.service.NettyService;
 
 public class MyService extends NettyService {
     public MyService() {
+
     }
 
     @Override

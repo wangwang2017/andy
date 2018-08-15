@@ -22,6 +22,17 @@
             android:enabled="true"
             android:exported="true">
         </service>
+
+        <!-- android:name是完成ContentProvider类的全称
+             android:authorities是和FirstProvidermetaData中的常量AUTHORITY的值一样，否则会报错
+         -->
+        <provider android:name=".CirContentProvider"
+                  android:authorities="com.yuyuehao.app.circontentprovider"
+                  android:multiprocess="false"
+                  android:exported="true"
+        >
+
+        </provider>
     </application>
 
 </manifest>
