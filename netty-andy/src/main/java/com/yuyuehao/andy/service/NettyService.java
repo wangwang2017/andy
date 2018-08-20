@@ -16,11 +16,13 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandlerContext;
 
 
 /**
@@ -74,7 +76,7 @@ public abstract class NettyService extends Service implements NettyListener {
     }
 
     @Override
-    public void onMessageResponse(ByteBuf data) {
+    public void onMessageResponse(ChannelHandlerContext channelHandlerContext, ByteBuf data) {
         String json = null;
         json = data.toString(Charset.forName(NettyClient.getInstance().getCharSet()));
         if (Verify.isJson(json)){
@@ -110,7 +112,7 @@ public abstract class NettyService extends Service implements NettyListener {
 
 
     @Override
-    public void onServiceStatusConnectChanged(int statusCode) {
+    public void onServiceStatusConnectChanged(InetSocketAddress inetSocketAddress, int statusCode) {
         getStatusInfo(statusCode);
         
     }
