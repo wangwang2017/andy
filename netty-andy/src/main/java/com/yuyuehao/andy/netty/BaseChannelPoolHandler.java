@@ -20,7 +20,6 @@ public class BaseChannelPoolHandler implements ChannelPoolHandler {
     private NettyListener mNettyListener;
 
     public BaseChannelPoolHandler(NettyListener mNettyListener){
-
         this.mNettyListener = mNettyListener;
     }
 
@@ -45,7 +44,7 @@ public class BaseChannelPoolHandler implements ChannelPoolHandler {
     @Override
     public void channelAcquired(Channel ch) throws Exception {
         Log.d("1",ch.id()+ " acquired");
-    }
+}
 
 
 

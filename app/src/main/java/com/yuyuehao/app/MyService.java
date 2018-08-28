@@ -3,7 +3,6 @@ package com.yuyuehao.app;
 import android.util.Log;
 
 import com.google.gson.Gson;
-import com.yuyuehao.andy.netty.NettyClientPool;
 import com.yuyuehao.andy.service.NettyPoolService;
 
 import java.net.InetSocketAddress;
@@ -12,43 +11,53 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.pool.SimpleChannelPool;
-import io.netty.util.HashedWheelTimer;
-import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.FutureListener;
 
 import static com.yuyuehao.andy.utils.IpNetAddress.getIpAddressAndSubnettest;
 
-public class MyService extends NettyPoolService implements TimerTask{
+public class MyService extends NettyPoolService {
 
-    public InetSocketAddress addr1 = new InetSocketAddress("192.168.53.16", 8080);
-    public InetSocketAddress addr2 = new InetSocketAddress("192.168.53.16", 8888);
-    private InetSocketAddress errorAddress = null;
+    //public InetSocketAddress addr1 = new InetSocketAddress("192.168.53.16", 13000);
+    public InetSocketAddress addr2 = new InetSocketAddress("192.168.53.16", 13020);
     private boolean key = false;
-    private final HashedWheelTimer timer = new HashedWheelTimer();
-    private InetSocketAddress error_inetSocketAddress  = null;
+
 
 
     @Override
     public void onMessageResponse(ChannelHandlerContext channelHandlerContext, ByteBuf data) {
         Log.d("1","ctx:"+channelHandlerContext.channel().remoteAddress().toString()+"   "+data.toString(Charset.forName("utf-8"))+", NettyPoolService");
+        if (channelHandlerContext.channel().remoteAddress().toString().contains("13000")){
+            if (data.toString(Charset.forName("utf-8")).startsWith("1")){
+                asyncWriteMessage(addr2,createConnectJson());
+                asyncWriteMessage(InetSocketAddress.createUnresolved("192.168.53.16",13000),"successful");
+            }else if (data.toString(Charset.forName("utf-8")).startsWith("2")){
+                closePoolConnection(addr2);
+            }
+        }
+
     }
+
+
 
     @Override
     public void onServiceStatusConnectChanged(final InetSocketAddress inetSocketAddress, int statusCode) {
-
         if (statusCode == 0){
-            error_inetSocketAddress = inetSocketAddress;
-            timer.newTimeout(this,5, TimeUnit.SECONDS);
+            try {
+                closePoolConnection(inetSocketAddress);
+                Thread.sleep(5000);
+                Log.d("1","ctx:"+inetSocketAddress.toString());
+                asyncWriteMessage(inetSocketAddress,createConnectJson());
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
         }
+
     }
+
+
 
 
     private String createConnectJson(){
@@ -77,42 +86,19 @@ public class MyService extends NettyPoolService implements TimerTask{
         String check_sum = MD5Utils.getStringMD5(sb.toString());
         map.put("check_sum",check_sum);
         String firstJson = new Gson().toJson(map);
+        Log.d("1",firstJson);
         return firstJson;
     }
 
     @Override
     protected void init() {
-        firstSendMessage(addr1);
-        firstSendMessage(addr2);
+       asyncWriteMessage(InetSocketAddress.createUnresolved("192.168.53.16",13000),createConnectJson());
     }
-
 
     @Override
-    public void run(Timeout timeout) throws Exception {
-        if (error_inetSocketAddress != null){
-            Log.d("1","no connect");
-            firstSendMessage(error_inetSocketAddress);
-        }
+    protected void getPublicNetWorkIp(String s) {
+        Log.d("1","s:"+s);
     }
 
-    public void firstSendMessage(InetSocketAddress address) {
-        final SimpleChannelPool pool = NettyClientPool.getInstance().getPool(address);
-        Future<Channel> future = pool.acquire();
-        // 获取到实例后发消息
-        future.addListener(new FutureListener<Channel>() {
-            @Override
-            public void operationComplete(Future<Channel> channelFuture) throws Exception {
-                if (channelFuture.isSuccess()) {
-                    Channel ch = (Channel) channelFuture.getNow();
-                    StringBuffer sb = new StringBuffer();
-                    sb.append(createConnectJson());
-                    sb.append("\n");
-                    ch.writeAndFlush(sb.toString());
-                    pool.release(ch);
-                }else{
-                    timer.newTimeout(MyService.this,5,TimeUnit.SECONDS);
-                }
-            }
-        });
-    }
+
 }

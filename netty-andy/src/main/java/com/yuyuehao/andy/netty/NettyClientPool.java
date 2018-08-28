@@ -10,7 +10,6 @@ import io.netty.channel.pool.AbstractChannelPoolMap;
 import io.netty.channel.pool.FixedChannelPool;
 import io.netty.channel.pool.SimpleChannelPool;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.util.HashedWheelTimer;
 
 /**
  * Created by Wang
@@ -21,7 +20,6 @@ public class NettyClientPool {
 
     final EventLoopGroup mEventLoopGroup = new NioEventLoopGroup();
     final Bootstrap mBootstrap = new Bootstrap();
-    protected final HashedWheelTimer timer = new HashedWheelTimer();
     private static final int Thread_Num = Runtime.getRuntime().availableProcessors();
     private static NettyClientPool mNettyClientPool = null;
     private NettyListener mNettyListener;
@@ -56,5 +54,7 @@ public class NettyClientPool {
     public SimpleChannelPool getPool(InetSocketAddress inetSocketAddress){
         return mNettyClientPool.poolMap.get(inetSocketAddress);
     }
+
+
 
 }

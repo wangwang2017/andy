@@ -1,6 +1,8 @@
 package com.yuyuehao.app;
 
+import android.content.ContentResolver;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
@@ -33,19 +35,21 @@ public class MainActivity extends AppCompatActivity {
 
 
     public void send80(View view){
-        final String ECHO_REQ = "Hello Netty.$_80";
-        final SimpleChannelPool pool = NettyClientPool.getInstance().poolMap.get(addr1);
-        Future<Channel> f = pool.acquire();
-        f.addListener(new GenericFutureListener<Future<? super Channel>>() {
-           @Override
-           public void operationComplete(Future<? super Channel> future) throws Exception {
-               Channel ch = (Channel) future.getNow();
-               ch.writeAndFlush(ECHO_REQ);
-               pool.release(ch);
-           }
-        });
-
-
+//        final String ECHO_REQ = "Hello Netty.$_80";
+//        final SimpleChannelPool pool = NettyClientPool.getInstance().poolMap.get(addr1);
+//        Future<Channel> f = pool.acquire();
+//        f.addListener(new GenericFutureListener<Future<? super Channel>>() {
+//           @Override
+//           public void operationComplete(Future<? super Channel> future) throws Exception {
+//               Channel ch = (Channel) future.getNow();
+//               ch.writeAndFlush(ECHO_REQ);
+//               pool.release(ch);
+//           }
+//        });
+        LogData log = new LogData("100221","send","大叔大婶的范围发生的教科书积分","收到货发神经的咖啡机我就发十几分");
+        ContentResolver contentResolver = this.getContentResolver();
+        Uri uri = ContentData.TableData.CONTENT_URI;
+        contentResolver.insert(uri,CirContentProvider.insertLogData(log));
     }
 
 
