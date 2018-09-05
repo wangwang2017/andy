@@ -23,6 +23,8 @@ public class NettyPoolClientInitializer extends ChannelInitializer<SocketChannel
 
     private NettyListener mNettyListener;
 
+
+
     public NettyPoolClientInitializer(NettyListener mNettyListener){
         this.mNettyListener = mNettyListener;
     }

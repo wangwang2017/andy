@@ -3,7 +3,6 @@ package com.yuyuehao.andy.netty;
 import android.util.Log;
 
 import java.net.InetSocketAddress;
-import java.nio.charset.Charset;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -31,16 +30,28 @@ public class NettyPoolHandler extends SimpleChannelInboundHandler<ByteBuf>{
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        Log.d("1","Active:"+ctx.channel().remoteAddress().toString());
+
         InetSocketAddress inetSocketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
-        nettyListener.onServiceStatusConnectChanged(inetSocketAddress,NettyListener.STATUS_CONNECT_SUCCESS);
+        StringBuffer sb = new StringBuffer();
+        sb.append(inetSocketAddress.getHostName());
+        sb.append(":");
+        sb.append(inetSocketAddress.getPort()+"");
+        String address = sb.toString();
+        Log.d("1",address+" is active");
+        nettyListener.onServiceStatusConnectChanged(address,NettyListener.STATUS_CONNECT_SUCCESS);
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        Log.d("1","Inactive:"+ctx.channel().remoteAddress().toString());
         InetSocketAddress inetSocketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
-        nettyListener.onServiceStatusConnectChanged(inetSocketAddress,NettyListener.STATUS_CONNECT_CLOSED);
+
+        StringBuffer sb = new StringBuffer();
+        sb.append(inetSocketAddress.getHostName());
+        sb.append(":");
+        sb.append(inetSocketAddress.getPort()+"");
+        String address = sb.toString();
+        Log.d("1",address+" is inactive");
+        nettyListener.onServiceStatusConnectChanged(address,NettyListener.STATUS_CONNECT_CLOSED);
     }
 
 
@@ -60,14 +71,26 @@ public class NettyPoolHandler extends SimpleChannelInboundHandler<ByteBuf>{
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         InetSocketAddress inetSocketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
-        nettyListener.onServiceStatusConnectChanged(inetSocketAddress,NettyListener.STATUS_CONNECT_ERROR);
+
+        StringBuffer sb = new StringBuffer();
+        sb.append(inetSocketAddress.getHostName());
+        sb.append(":");
+        sb.append(inetSocketAddress.getPort()+"");
+        String address = sb.toString();
+        Log.d("1",address+" is exception");
+        nettyListener.onServiceStatusConnectChanged(address,NettyListener.STATUS_CONNECT_ERROR);
         ctx.close();
         cause.printStackTrace();
     }
 
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, ByteBuf o) throws Exception {
-        Log.d("1",o.toString(Charset.forName("utf-8")));
-        nettyListener.onMessageResponse(channelHandlerContext,o);
+        InetSocketAddress inetSocketAddress = (InetSocketAddress) channelHandlerContext.channel().remoteAddress();
+        StringBuffer sb = new StringBuffer();
+        sb.append(inetSocketAddress.getHostName());
+        sb.append(":");
+        sb.append(inetSocketAddress.getPort()+"");
+        String address = sb.toString();
+        nettyListener.onMessageResponse(address,o);
     }
 }

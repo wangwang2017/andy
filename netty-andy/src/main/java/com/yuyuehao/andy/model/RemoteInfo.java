@@ -9,18 +9,18 @@ public class RemoteInfo {
 
 
     private String address;
-    private String port;
-    private String charset;
+    private int port;
+
 
 
     public RemoteInfo(){
 
     }
 
-    public RemoteInfo(String address, String port, String charset) {
+    public RemoteInfo(String address, int port) {
         this.address = address;
         this.port = port;
-        this.charset = charset;
+
     }
 
     public String getAddress() {
@@ -31,20 +31,12 @@ public class RemoteInfo {
         this.address = address;
     }
 
-    public String getPort() {
+    public int getPort() {
         return port;
     }
 
-    public void setPort(String port) {
+    public void setPort(int port) {
         this.port = port;
-    }
-
-    public String getCharset() {
-        return charset;
-    }
-
-    public void setCharset(String charset) {
-        this.charset = charset;
     }
 
 

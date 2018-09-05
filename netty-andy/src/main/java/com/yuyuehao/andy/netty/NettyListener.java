@@ -1,9 +1,6 @@
 package com.yuyuehao.andy.netty;
 
-import java.net.InetSocketAddress;
-
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
 
 /**
  * Created by Wang
@@ -22,12 +19,12 @@ public interface NettyListener {
      * 对消息的处理
      * @param data
      */
-    void onMessageResponse(ChannelHandlerContext channelHandlerContext, ByteBuf data);
+    void onMessageResponse(String inetSocketAddress, ByteBuf data);
 
 
 
     /**
      * 当服务状态发生变化时触发
      */
-    public void onServiceStatusConnectChanged(InetSocketAddress inetSocketAddress, int statusCode);
+    public void onServiceStatusConnectChanged(String inetSocketAddress, int statusCode);
 }

@@ -1,58 +1,109 @@
 package com.yuyuehao.app;
 
+import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 
 import com.google.gson.Gson;
 import com.yuyuehao.andy.service.NettyPoolService;
 
 import java.net.InetSocketAddress;
-import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Random;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.CharsetUtil;
 
 import static com.yuyuehao.andy.utils.IpNetAddress.getIpAddressAndSubnettest;
 
 public class MyService extends NettyPoolService {
 
-    //public InetSocketAddress addr1 = new InetSocketAddress("192.168.53.16", 13000);
-    public InetSocketAddress addr2 = new InetSocketAddress("192.168.53.16", 13020);
-    private boolean key = false;
+    private List<String> list = new ArrayList<>();
+    private List<InetSocketAddress> list1 = new ArrayList<>();
+    private boolean connect = true;
 
+
+    private final static int Next = 1;
+
+    private Handler mHandler = new Handler(){
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            if (msg.what == Next){
+                Log.d("1",(String)msg.obj);
+                asyncWriteMessage((String)msg.obj,createConnectJson(),3);
+            }
+        }
+    };
 
 
     @Override
-    public void onMessageResponse(ChannelHandlerContext channelHandlerContext, ByteBuf data) {
-        Log.d("1","ctx:"+channelHandlerContext.channel().remoteAddress().toString()+"   "+data.toString(Charset.forName("utf-8"))+", NettyPoolService");
-        if (channelHandlerContext.channel().remoteAddress().toString().contains("13000")){
-            if (data.toString(Charset.forName("utf-8")).startsWith("1")){
-                asyncWriteMessage(addr2,createConnectJson());
-                asyncWriteMessage(InetSocketAddress.createUnresolved("192.168.53.16",13000),"successful");
-            }else if (data.toString(Charset.forName("utf-8")).startsWith("2")){
-                closePoolConnection(addr2);
+    public void onMessageResponse(String inetSocketAddress, ByteBuf data) {
+        Log.d("1","receiver:"+inetSocketAddress);
+
+        String json = data.toString(CharsetUtil.UTF_8);
+        Log.d("1","json:"+json);
+        for (int i = 0; i <list.size() ; i++) {
+            Log.d("1","list-<"+i+">:"+list.get(i).toString());
+        }
+        if (connect) {
+            if (list.contains(inetSocketAddress)) {
+                if (json.contains("ok")){
+
+                }else{
+                    String strs[] = json.split("\\|");
+                    Log.d("1","new,"+strs[1]+":"+strs[2]);
+                    closePoolConnection(inetSocketAddress);
+                    InetSocketAddress address1 = InetSocketAddress.createUnresolved(strs[1], Integer.valueOf(strs[2]));
+                    if (!list.contains(address1)) {
+                        list.add(address1.toString());
+                    }
+                    asyncWriteMessage(address1.toString(),createConnectJson(),3);
+                }
             }
         }
-
     }
 
 
 
     @Override
-    public void onServiceStatusConnectChanged(final InetSocketAddress inetSocketAddress, int statusCode) {
+    public void onServiceStatusConnectChanged(final String inetSocketAddress, int statusCode) {
         if (statusCode == 0){
+            Log.d("1",inetSocketAddress+" failed.");
             try {
-                closePoolConnection(inetSocketAddress);
-                Thread.sleep(5000);
-                Log.d("1","ctx:"+inetSocketAddress.toString());
-                asyncWriteMessage(inetSocketAddress,createConnectJson());
+                if (list.contains(inetSocketAddress)) {
+                    if (list.size() <= 1) {
+                        closePoolConnection(inetSocketAddress);
+                        Thread.sleep(5000);
+                        asyncWriteMessage(inetSocketAddress, createConnectJson(), Integer.MAX_VALUE);
+                    } else {
+                        int a = list.indexOf(inetSocketAddress);
+                        Random rd = new Random();
+                        int second = rd.nextInt(21)*1000;
+                        Message msg = Message.obtain();
+                        msg.what = Next;
+                        if (list.size()-1 > a){
+                            Log.d("1",second+",next:"+list.get(a+1).toString());
+                            msg.obj = list.get(a+1);
+                        }else{
+                            Log.d("1",second+",start:"+list.get(0).toString());
+                            msg.obj = list.get(0);
+                        }
+                        mHandler.sendMessageDelayed(msg,second);
+                    }
+                }
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
 
+        }else if (statusCode == 1){
+            Log.d("1","address:"+inetSocketAddress+",success.");
+        }else if (statusCode == -1){
+            Log.d("1","address:"+inetSocketAddress+",exception.");
         }
 
     }
@@ -92,7 +143,11 @@ public class MyService extends NettyPoolService {
 
     @Override
     protected void init() {
-       asyncWriteMessage(InetSocketAddress.createUnresolved("192.168.53.16",13000),createConnectJson());
+        String address = "192.168.53.16:13000";
+        asyncWriteMessage(address,createConnectJson(),Integer.MAX_VALUE);
+        if (!list.contains(address)) {
+            list.add(address);
+        }
     }
 
     @Override
@@ -101,4 +156,23 @@ public class MyService extends NettyPoolService {
     }
 
 
+    @Override
+    public void onCompletionTimerTask(String inetSocketAddress) {
+        Log.d("1","size:"+list.size());
+        if (list.contains(inetSocketAddress)){
+            int i = list.indexOf(inetSocketAddress);
+            Random rd = new Random();
+            int second = rd.nextInt(21)*1000;
+            Message msg = Message.obtain();
+            msg.what = Next;
+            if (list.size()-1 > i){
+                Log.d("1",second+",next:"+list.get(i+1).toString());
+                msg.obj = list.get(i+1);
+            }else{
+                Log.d("1",second+",start:"+list.get(0).toString());
+                msg.obj = list.get(0);
+            }
+            mHandler.sendMessageDelayed(msg,second);
+        }
+    }
 }

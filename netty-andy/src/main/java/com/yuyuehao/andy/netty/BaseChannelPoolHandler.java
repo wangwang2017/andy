@@ -1,6 +1,6 @@
 package com.yuyuehao.andy.netty;
 
-import android.util.Log;
+import com.yuyuehao.andy.utils.LogUtils;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -18,6 +18,7 @@ public class BaseChannelPoolHandler implements ChannelPoolHandler {
 
 
     private NettyListener mNettyListener;
+
 
     public BaseChannelPoolHandler(NettyListener mNettyListener){
         this.mNettyListener = mNettyListener;
@@ -38,14 +39,11 @@ public class BaseChannelPoolHandler implements ChannelPoolHandler {
 
     @Override
     public void channelReleased(Channel ch) throws Exception {
-        Log.d("1",ch.id()+ " released");
+        LogUtils.write("NettyPoolServer",LogUtils.LEVEL_INFO,ch.id()+":"+ch.remoteAddress().toString()+ " released",true);
     }
 
     @Override
     public void channelAcquired(Channel ch) throws Exception {
-        Log.d("1",ch.id()+ " acquired");
-}
-
-
-
+        LogUtils.write("NettyPoolServer",LogUtils.LEVEL_INFO,ch.id()+":"+ch.remoteAddress().toString()+ " acquired",true);
+    }
 }

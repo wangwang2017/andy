@@ -2,7 +2,8 @@ package com.yuyuehao.andy.netty;
 
 import android.util.Log;
 
-import java.net.InetSocketAddress;
+import com.yuyuehao.andy.utils.LogUtils;
+
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -19,41 +20,56 @@ import io.netty.util.concurrent.FutureListener;
  * on 2018-08-21
  */
 
-public class ConnectThread implements TimerTask {
+public class ConnectThread implements TimerTask{
 
 
     private Timer mTimer;
     private String message;
-    private InetSocketAddress address;
+    private String address;
+    private int count;
+    private CallBack callBack;
 
-    public ConnectThread(InetSocketAddress address, Timer mTimer, String message){
+    public ConnectThread(String address, Timer mTimer, String message, int count,CallBack callBack){
         this.mTimer = mTimer;
         this.message = message;
         this.address = address;
+        this.count = count;
+        this.callBack = callBack;
     }
 
     @Override
     public void run(Timeout timeout) throws Exception {
         final SimpleChannelPool pool =  NettyClientPool.getInstance().getPool(address);
         Future<Channel> f = pool.acquire();
-        Log.d("1","-36");
+        Log.d("1","----------------");
         f.addListener(new FutureListener<Channel>(){
             @Override
             public void operationComplete(Future<Channel> channelFuture) throws Exception {
-                Log.d("1","-40");
                 if (channelFuture.isSuccess()) {
                     Channel ch = channelFuture.getNow();
                     StringBuffer sb = new StringBuffer();
                     sb.append(message);
                     sb.append("\n");
                     ch.writeAndFlush(sb.toString());
-                    Log.d("1","连接成功");
+                    LogUtils.write("NettyPoolServer",LogUtils.LEVEL_INFO,address.toString()+" connect successful",true);
                     pool.release(ch);
                 }else{
                     Random rd = new Random();
-                    int seconds = rd.nextInt(18)+3;
-                    mTimer.newTimeout(ConnectThread.this,seconds, TimeUnit.SECONDS);
-                    Log.d("1","连接失败:"+seconds+"秒");
+                    int seconds = rd.nextInt(3) + 3;
+                    Log.d("1","seconds:"+seconds+",count:"+count);
+                    if (count == 0){
+                        Log.d("1",address+" is connect timeout end");
+                        callBack.onCompletionTimerTask(address);
+                    }
+                    if (count >0 && count <= 2) {
+                        count--;
+                        mTimer.newTimeout(ConnectThread.this, seconds, TimeUnit.SECONDS);
+                        LogUtils.write("NettyPoolServer", LogUtils.LEVEL_INFO, address.toString() + " connect failed," + seconds + " seconds reconnect", true);
+                    }
+
+                    if (count>6){
+                        mTimer.newTimeout(ConnectThread.this, seconds, TimeUnit.SECONDS);
+                    }
                 }
             }
         });

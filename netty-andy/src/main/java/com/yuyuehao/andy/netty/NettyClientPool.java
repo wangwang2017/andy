@@ -1,13 +1,9 @@
 package com.yuyuehao.andy.netty;
 
-import java.net.InetSocketAddress;
-
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.pool.AbstractChannelPoolMap;
-import io.netty.channel.pool.FixedChannelPool;
 import io.netty.channel.pool.SimpleChannelPool;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
@@ -24,7 +20,7 @@ public class NettyClientPool {
     private static NettyClientPool mNettyClientPool = null;
     private NettyListener mNettyListener;
 
-    public AbstractChannelPoolMap<InetSocketAddress,SimpleChannelPool> poolMap;
+    public MyChannelPoolMap poolMap;
 
     public static synchronized NettyClientPool getInstance(){
         if (mNettyClientPool == null){
@@ -39,22 +35,27 @@ public class NettyClientPool {
                 .option(ChannelOption.TCP_NODELAY,true)
                 .option(ChannelOption.SO_KEEPALIVE,true);
 
-        poolMap = new AbstractChannelPoolMap<InetSocketAddress, SimpleChannelPool>() {
-            @Override
-            protected SimpleChannelPool newPool(InetSocketAddress socketAddress) {
-                return new FixedChannelPool(mBootstrap.remoteAddress(socketAddress),new BaseChannelPoolHandler(mNettyListener),Thread_Num);
-            }
-        };
+        poolMap = new MyChannelPoolMap(mBootstrap,mNettyListener,Thread_Num);
+
     }
 
     public void setListener(NettyListener listener){
         this.mNettyListener = listener;
     }
 
-    public SimpleChannelPool getPool(InetSocketAddress inetSocketAddress){
-        return mNettyClientPool.poolMap.get(inetSocketAddress);
+    public SimpleChannelPool getPool(String remoteInfo){
+        return mNettyClientPool.poolMap.get(remoteInfo);
     }
 
-
+    public void closeAll(){
+        if (poolMap != null){
+            if (poolMap.size() != 0){
+                poolMap.close();
+            }
+        }
+        if (mEventLoopGroup != null){
+            mEventLoopGroup.shutdownGracefully();
+        }
+    }
 
 }

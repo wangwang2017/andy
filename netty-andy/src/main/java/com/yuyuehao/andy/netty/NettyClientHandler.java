@@ -3,8 +3,6 @@ package com.yuyuehao.andy.netty;
 import com.yuyuehao.andy.utils.Const;
 import com.yuyuehao.andy.utils.LogUtils;
 
-import java.net.InetSocketAddress;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -39,15 +37,14 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         NettyClient.getInstance().setConnectStatus(true);
-        InetSocketAddress inetSocketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
-        listener.onServiceStatusConnectChanged(inetSocketAddress,NettyListener.STATUS_CONNECT_SUCCESS);
+        listener.onServiceStatusConnectChanged(null,NettyListener.STATUS_CONNECT_SUCCESS);
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         NettyClient.getInstance().setConnectStatus(false);
-        InetSocketAddress inetSocketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
-        listener.onServiceStatusConnectChanged(inetSocketAddress,NettyListener.STATUS_CONNECT_CLOSED);
+
+        listener.onServiceStatusConnectChanged(null,NettyListener.STATUS_CONNECT_CLOSED);
     }
 
 
@@ -63,8 +60,7 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         NettyClient.getInstance().setConnectStatus(false);
-        InetSocketAddress inetSocketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
-        listener.onServiceStatusConnectChanged(inetSocketAddress,NettyListener.STATUS_CONNECT_ERROR);
+        listener.onServiceStatusConnectChanged(null,NettyListener.STATUS_CONNECT_ERROR);
         LogUtils.write(Const.Tag,LogUtils.LEVEL_ERROR,NettyClient.getInstance().getPackageName()+",Exception|"+NettyClient.getInstance().getHost()+
                 ":"+NettyClient.getInstance().getPort()+"|{"+cause.getMessage()+"}",true);
         ctx.channel().closeFuture();

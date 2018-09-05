@@ -6,6 +6,7 @@ import android.os.AsyncTask;
 import android.os.IBinder;
 import android.util.Log;
 
+import com.yuyuehao.andy.netty.CallBack;
 import com.yuyuehao.andy.netty.ConnectThread;
 import com.yuyuehao.andy.netty.NettyClientPool;
 import com.yuyuehao.andy.netty.NettyListener;
@@ -17,7 +18,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -27,7 +27,7 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 
-public abstract class NettyPoolService extends Service implements NettyListener{
+public abstract class NettyPoolService extends Service implements NettyListener,CallBack{
 
 
     private HashedWheelTimer timer = new HashedWheelTimer();
@@ -48,8 +48,8 @@ public abstract class NettyPoolService extends Service implements NettyListener{
         task.execute("http://ip.6655.com/ip.aspx");
         setTCP_Params(60,15,4);
         try {
-            NettyClientPool.getInstance().build();
             NettyClientPool.getInstance().setListener(this);
+            NettyClientPool.getInstance().build();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -77,10 +77,11 @@ public abstract class NettyPoolService extends Service implements NettyListener{
 
 
 
-    public void asyncWriteMessage(final InetSocketAddress address, final String message) {
-        final SimpleChannelPool pool = NettyClientPool.getInstance().getPool(address);
+    public void asyncWriteMessage(final String remoteInfo, final String message, int number) {
+        final SimpleChannelPool pool = NettyClientPool.getInstance().getPool(remoteInfo);
         Future<Channel> future = pool.acquire();
         // 获取到实例后发消息
+        final int count = number-1;
         future.addListener(new FutureListener<Channel>() {
             @Override
             public void operationComplete(Future<Channel> channelFuture) throws Exception {
@@ -92,17 +93,18 @@ public abstract class NettyPoolService extends Service implements NettyListener{
                     ch.writeAndFlush(sb.toString());
                     pool.release(ch);
                 }else{
-                    Log.d("1","startTimeout");
+                    Log.d("1","startReconnect");
                     Random rd = new Random();
-                    int seconds = rd.nextInt(18)+3;
-                    timer.newTimeout(new ConnectThread(address,timer,message),seconds, TimeUnit.SECONDS);
+                    int seconds = rd.nextInt(3)+3;
+                    timer.newTimeout(new ConnectThread(remoteInfo,timer,message,count,NettyPoolService.this),seconds, TimeUnit.SECONDS);
                 }
             }
         });
     }
 
 
-    public void closePoolConnection(final InetSocketAddress address){
+
+    public void closePoolConnection(String address){
         if (NettyClientPool.getInstance().poolMap.contains(address)){
             NettyClientPool.getInstance().poolMap.remove(address);
         }
@@ -183,5 +185,11 @@ public abstract class NettyPoolService extends Service implements NettyListener{
                 e.printStackTrace();
             }
         }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        NettyClientPool.getInstance().closeAll();
     }
 }
