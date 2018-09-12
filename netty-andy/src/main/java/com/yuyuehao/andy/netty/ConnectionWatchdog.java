@@ -1,9 +1,12 @@
 package com.yuyuehao.andy.netty;
 
 
+import android.util.Log;
+
 import com.yuyuehao.andy.utils.Const;
 import com.yuyuehao.andy.utils.LogUtils;
 
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import io.netty.bootstrap.Bootstrap;
@@ -27,19 +30,36 @@ public abstract class ConnectionWatchdog extends ChannelInboundHandlerAdapter im
 
     private final Bootstrap mBootstrap;
     private final Timer mTimer;
-    private final int port;
-    private final String host;
-    private volatile boolean reconnect = true;
+    private volatile int port;
+    private volatile String host;
+    //private volatile boolean reconnect = true;
+    private ConnectCallBack callBack;
+    private volatile int retryNumber;
 
-
-
-    public ConnectionWatchdog(Bootstrap bootstrap, Timer timer, int port, String host, boolean reconnect) {
+    public ConnectionWatchdog(ConnectCallBack callBack,Bootstrap bootstrap, Timer timer, int port, String host, int retryNumber) {
+        this.callBack = callBack;
         mBootstrap = bootstrap;
         mTimer = timer;
         this.port = port;
         this.host = host;
-        this.reconnect = reconnect;
+        this.retryNumber = retryNumber;
 
+    }
+
+    public void setCallBack(ConnectCallBack callBack) {
+        this.callBack = callBack;
+    }
+
+    public void setRetryNumber(int retryNumber) {
+        this.retryNumber = retryNumber;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
+    }
+
+    public void setHost(String host) {
+        this.host = host;
     }
 
     @Override
@@ -52,9 +72,12 @@ public abstract class ConnectionWatchdog extends ChannelInboundHandlerAdapter im
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,NettyClient.getInstance().getPackageName()+":连接失败|"+host+":"+port,true);
-        ctx.fireChannelInactive();
-        if (reconnect){
-            startTimeout();
+        String str = ctx.channel().remoteAddress().toString();
+        if (str.contains(host) && str.contains(String.valueOf(port))){
+            ctx.fireChannelInactive();
+            if (retryNumber > 0) {
+                startTimeout();
+            }
         }
     }
 
@@ -71,8 +94,17 @@ public abstract class ConnectionWatchdog extends ChannelInboundHandlerAdapter im
 
 
     public void startTimeout(){
-        LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,NettyClient.getInstance().getPackageName()+":重新开始连接|"+host+":"+port,true);
-        mTimer.newTimeout(this,15, TimeUnit.SECONDS);
+        if (retryNumber>0) {
+            Random rd = new Random();
+            int seconds = rd.nextInt(3) + 1;
+            LogUtils.write(Const.Tag, LogUtils.LEVEL_INFO, NettyClient.getInstance().getPackageName() + ":重新开始连接|" + host + ":" + port, true);
+            mTimer.newTimeout(this, seconds, TimeUnit.SECONDS);
+            retryNumber--;
+        }
+
+        if (retryNumber==0){
+            callBack.completionConnectNumber(host+":"+port);
+        }
     }
 
 
@@ -92,11 +124,14 @@ public abstract class ConnectionWatchdog extends ChannelInboundHandlerAdapter im
             @Override
             public void operationComplete(ChannelFuture channelFuture) throws Exception {
                 if (channelFuture.isSuccess()){
+                    if (retryNumber>0){
+                        retryNumber = 0;
+                    }
                     LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,NettyClient.getInstance().getPackageName()+":重新连接成功|"+host+":"+port,true);
                     NettyClient.getInstance().setFuture(channelFuture);
                 }else{
                     LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,NettyClient.getInstance().getPackageName()+":重新连接失败|"+host+":"+port,true);
-                    future.channel().closeFuture();
+                    future.channel().close();
                     startTimeout();
                 }
             }

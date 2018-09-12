@@ -30,11 +30,12 @@ public class NettyClient {
 
     private static NettyClient nettyClient = null;
     private NettyListener mNettyListener;
+    private ConnectCallBack mConnectCallBack;
     private boolean isConnect = false;
-    private String host;
+    private volatile String host;
     private int reconnectNum = Integer.MAX_VALUE;
     private long reconnectIntervalTime = 5000;
-    private int port;
+    private volatile int port;
     private String charSet;
     private String packageName;
     private Bootstrap mBootstrap;
@@ -75,7 +76,7 @@ public class NettyClient {
                     .option(ChannelOption.SO_KEEPALIVE, true)
                     .option(ChannelOption.TCP_NODELAY, true)
                     .channel(NioSocketChannel.class);
-            watchdog = new ConnectionWatchdog(mBootstrap,timer,port,host,true) {
+            watchdog = new ConnectionWatchdog(mConnectCallBack,mBootstrap,timer,port,host,Integer.MAX_VALUE) {
                 @Override
                 public ChannelHandler[] handlers() {
                     return new ChannelHandler[]{
@@ -88,7 +89,11 @@ public class NettyClient {
         }
     }
 
-    public void connect(){
+    public void connect(int reconnectNum){
+        watchdog.setRetryNumber(reconnectNum);
+        watchdog.setHost(host);
+        watchdog.setPort(port);
+        watchdog.setCallBack(mConnectCallBack);
         ChannelFuture mChannelFuture = null;
         try {
             LogUtils.write(Const.Tag,LogUtils.LEVEL_INFO,packageName+":开始连接|"+host+":"+port,true);
@@ -116,7 +121,7 @@ public class NettyClient {
 
     public void closeConnection(){
         if (future != null && future.isSuccess()) {
-            future.channel().closeFuture();
+            future.channel().close();
         }
     }
 
@@ -189,8 +194,12 @@ public class NettyClient {
         this.isConnect = status;
     }
 
-    public void setListener(NettyListener listener){
+    public void setNettyListener(NettyListener listener){
         this.mNettyListener = listener;
+    }
+
+    public void setConnectCallBack(ConnectCallBack connectCallBack) {
+        mConnectCallBack = connectCallBack;
     }
 
     public String getCharSet() {
@@ -208,4 +217,5 @@ public class NettyClient {
     public void setPackageName(String packageName) {
         this.packageName = packageName;
     }
+
 }

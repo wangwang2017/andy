@@ -5,12 +5,12 @@ import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.IBinder;
 
+import com.yuyuehao.andy.netty.ConnectCallBack;
 import com.yuyuehao.andy.netty.NettyClient;
 import com.yuyuehao.andy.netty.NettyListener;
 import com.yuyuehao.andy.utils.Const;
 import com.yuyuehao.andy.utils.IpNetAddress;
 import com.yuyuehao.andy.utils.LogUtils;
-import com.yuyuehao.andy.utils.Verify;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,8 +19,6 @@ import java.io.OutputStream;
 import java.nio.charset.Charset;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 
 
 /**
@@ -28,7 +26,7 @@ import io.netty.channel.ChannelFutureListener;
  * on 2017-11-24
  */
 
-public abstract class NettyService extends Service implements NettyListener {
+public abstract class NettyService extends Service implements NettyListener,ConnectCallBack {
 
     private Task task;
     public  String packageName;
@@ -58,7 +56,8 @@ public abstract class NettyService extends Service implements NettyListener {
         task = new Task();
         task.execute("http://ip.6655.com/ip.aspx");
         init();
-        NettyClient.getInstance().setListener(this);
+        NettyClient.getInstance().setNettyListener(this);
+        NettyClient.getInstance().setConnectCallBack(this);
         packageName = NettyClient.getInstance().getPackageName();
         connect();
         return START_STICKY;
@@ -73,23 +72,25 @@ public abstract class NettyService extends Service implements NettyListener {
         return null;
     }
 
+
+
     @Override
     public void onMessageResponse(ByteBuf data) {
         String json = null;
         json = data.toString(Charset.forName(NettyClient.getInstance().getCharSet()));
-        if (Verify.isJson(json)){
+//        if (Verify.isJson(json)){
             getMessageInfo(json);
-        } else if(json.equals("\n") || json.equals("\r") || json.equals("\n\r") || json.equals("")){
-
-        }else{
-            LogUtils.write(Const.Tag, LogUtils.LEVEL_ERROR, packageName+":Error Json,"+json, true);
-            NettyClient.getInstance().sendMsgToServer("{\"error\":\"bad_request\"}", new ChannelFutureListener() {
-                @Override
-                public void operationComplete(ChannelFuture future) throws Exception {
-
-                }
-            });
-        }
+//        } else if(json.equals("\n") || json.equals("\r") || json.equals("\n\r") || json.equals("")){
+//
+//        }else{
+//            LogUtils.write(Const.Tag, LogUtils.LEVEL_ERROR, packageName+":Error Json,"+json, true);
+//            NettyClient.getInstance().sendMsgToServer("{\"error\":\"bad_request\"}", new ChannelFutureListener() {
+//                @Override
+//                public void operationComplete(ChannelFuture future) throws Exception {
+//
+//                }
+//            });
+//        }
     }
 
     protected abstract void getMessageInfo(String json);
@@ -99,7 +100,7 @@ public abstract class NettyService extends Service implements NettyListener {
             new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    NettyClient.getInstance().connect();//连接服务器
+                    NettyClient.getInstance().connect(Integer.MAX_VALUE);//连接服务器
                 }
             }).start();
         }
