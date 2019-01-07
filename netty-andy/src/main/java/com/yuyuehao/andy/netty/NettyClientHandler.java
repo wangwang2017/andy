@@ -1,5 +1,7 @@
 package com.yuyuehao.andy.netty;
 
+import android.util.Log;
+
 import com.yuyuehao.andy.utils.Const;
 import com.yuyuehao.andy.utils.LogUtils;
 
@@ -22,6 +24,7 @@ import io.netty.util.CharsetUtil;
 @ChannelHandler.Sharable
 public class NettyClientHandler extends ChannelInboundHandlerAdapter {
 
+    private static final String TAG = "NettyClientHandler";
     private NettyListener listener;
     private static final ByteBuf HEARTBEAT_SEQUENCE = Unpooled
             .unreleasableBuffer(Unpooled.copiedBuffer("\n", CharsetUtil.UTF_8));
@@ -38,17 +41,20 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         NettyClient.getInstance().setConnectStatus(true);
         listener.onServiceStatusConnectChanged(NettyListener.STATUS_CONNECT_SUCCESS);
+        Log.i(TAG,"channelActive");
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         NettyClient.getInstance().setConnectStatus(false);
         listener.onServiceStatusConnectChanged(NettyListener.STATUS_CONNECT_CLOSED);
+        Log.i(TAG,"channelInactive");
     }
 
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        Log.i(TAG,"channelRead");
         if ((ByteBuf)msg != null){
             listener.onMessageResponse((ByteBuf)msg);
         }
@@ -58,6 +64,7 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        Log.i(TAG,"exceptionCaught");
         NettyClient.getInstance().setConnectStatus(false);
         listener.onServiceStatusConnectChanged(NettyListener.STATUS_CONNECT_ERROR);
         LogUtils.write(Const.Tag,LogUtils.LEVEL_ERROR,NettyClient.getInstance().getPackageName()+",Exception|"+NettyClient.getInstance().getHost()+

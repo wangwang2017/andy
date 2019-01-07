@@ -6,20 +6,23 @@ import android.util.Log;
 
 import com.yuyuehao.andy.netty.NettyClient;
 import com.yuyuehao.andy.service.NettyService;
-import com.yuyuehao.andy.utils.Verify;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
+
 public class MyService extends NettyService {
 
     private List<String> list = new ArrayList<>();
+    private static final String TAG = "MyService";
     public MyService() {
     }
 
     @Override
     protected void init() {
-        NettyClient.getInstance("192.168.53.16",13000,"utf-8","canise");
+        NettyClient.getInstance("192.168.53.61",13000,"utf-8","canise");
         NettyClient.getInstance().initBootstrap();
     }
 
@@ -31,25 +34,22 @@ public class MyService extends NettyService {
 
     @Override
     protected void getMessageInfo(String json) {
-        Log.d("1",json);
-        if (json.contains("|")) {
-            String[] strings = json.split("\\|");
-            if (strings.length >=3){
-                if (Verify.isDigit(strings[2])){
-                    NettyClient.getInstance().closeConnection();
-                    NettyClient.getInstance().setHost(strings[1]);
-                    NettyClient.getInstance().setPort(Integer.valueOf(strings[2]));
-                    NettyClient.getInstance().connect(3);
+        Log.i(TAG,json);
+        if (json.equals("1")){
+            NettyClient.getInstance().sendMsgToServer("2\n", new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                    if (channelFuture.isSuccess()){
+                        Log.i(TAG,"success");
+                    }
                 }
-            }
-        }else{
-            Log.d("1","未进去");
+            });
         }
     }
 
     @Override
     protected void getStatusInfo(int statusCode) {
-
+        Log.i(TAG,"statusCode:"+statusCode);
     }
 
     @Override
@@ -60,6 +60,6 @@ public class MyService extends NettyService {
 
     @Override
     public void completionConnectNumber(String ip) {
-        Log.d("1",ip);
+
     }
 }

@@ -14,6 +14,8 @@ import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 import io.netty.handler.timeout.IdleStateHandler;
 
+import static android.os.Build.VERSION_CODES.N;
+
 /**
  * Created by Wang
  * on 2017-11-24
@@ -39,6 +41,7 @@ public class NettyClientInitializer extends ChannelInitializer<SocketChannel> {
         pipeline.addLast("framer", new DelimiterBasedFrameDecoder(30 * 1024, Delimiters.lineDelimiter()));
         pipeline.addLast(new IdleStateHandler(15, 0, 0, TimeUnit.SECONDS));
         pipeline.addLast(new NettyClientHandler(listener));
+        pipeline.addLast(new NettyOutBoundHandler());
         pipeline.addLast(new StringDecoder(Charset.forName(NettyClient.getInstance().getCharSet())));
         pipeline.addLast(new StringEncoder(Charset.forName(NettyClient.getInstance().getCharSet())));
     }

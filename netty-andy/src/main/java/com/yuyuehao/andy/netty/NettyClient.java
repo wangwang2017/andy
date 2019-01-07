@@ -135,7 +135,7 @@ public class NettyClient {
 
 
 
-    public boolean sendMsgToServer(String json, ChannelFutureListener listener){
+    public synchronized boolean sendMsgToServer(String json, ChannelFutureListener listener){
         StringBuffer sb = new StringBuffer(json);
         sb.append("\n");
         String realJson = sb.toString();
