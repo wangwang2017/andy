@@ -22,14 +22,12 @@ public class ConnectThread implements TimerTask{
 
 
     private Timer mTimer;
-    private String message;
     private String address;
     private int count;
     private CallBack callBack;
 
-    public ConnectThread(String address, Timer mTimer, String message, int count,CallBack callBack){
+    public ConnectThread(String address, Timer mTimer, int count,CallBack callBack){
         this.mTimer = mTimer;
-        this.message = message;
         this.address = address;
         this.count = count;
         this.callBack = callBack;
@@ -37,7 +35,7 @@ public class ConnectThread implements TimerTask{
 
     @Override
     public void run(Timeout timeout) throws Exception {
-        final SimpleChannelPool pool =  NettyClientPool.getInstance().getPool(address);
+        final SimpleChannelPool pool =  NettyClientPool.getInstance().poolMap.get(address);
         Future<Channel> f = pool.acquire();
         f.addListener(new FutureListener<Channel>(){
             @Override
@@ -45,14 +43,14 @@ public class ConnectThread implements TimerTask{
                 if (channelFuture.isSuccess()) {
                     Channel ch = channelFuture.getNow();
                     StringBuffer sb = new StringBuffer();
-                    sb.append(message);
                     sb.append("\n");
                     ch.writeAndFlush(sb.toString());
+                    callBack.onConnectSuccessful(address);
                     LogUtils.write("NettyPoolServer",LogUtils.LEVEL_INFO,address.toString()+" connect successful.",true);
                     pool.release(ch);
                 }else{
                     Random rd = new Random();
-                    int seconds = rd.nextInt(11) + 10;
+                    int seconds = rd.nextInt(11) + 15;
                     if (count == 0){
                         callBack.onCompletionTimerTask(address);
                         LogUtils.write("NettyPoolServer", LogUtils.LEVEL_INFO, address.toString() + " connect failed,circulation end.", true);
@@ -67,7 +65,6 @@ public class ConnectThread implements TimerTask{
                         mTimer.newTimeout(ConnectThread.this, seconds, TimeUnit.SECONDS);
                         LogUtils.write("NettyPoolServer", LogUtils.LEVEL_INFO, address.toString() + " connect failed," + seconds + " seconds reconnect.", true);
                     }
-
                 }
             }
         });

@@ -1,11 +1,17 @@
 package com.yuyuehao.andy.netty;
 
+import java.net.InetSocketAddress;
+
 import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.pool.SimpleChannelPool;
+import io.netty.channel.pool.AbstractChannelPoolMap;
+import io.netty.channel.pool.FixedChannelPool;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.FutureListener;
 
 /**
  * Created by Wang
@@ -14,13 +20,14 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 public class NettyClientPool {
 
-    final EventLoopGroup mEventLoopGroup = new NioEventLoopGroup();
-    final Bootstrap mBootstrap = new Bootstrap();
+    private static final EventLoopGroup mEventLoopGroup = new NioEventLoopGroup();
+    private static final Bootstrap mBootstrap = new Bootstrap();
     private static final int Thread_Num = Runtime.getRuntime().availableProcessors();
     private static NettyClientPool mNettyClientPool = null;
     private NettyListener mNettyListener;
 
-    public MyChannelPoolMap poolMap;
+
+    public AbstractChannelPoolMap<String,FixedChannelPool> poolMap;
 
     public static synchronized NettyClientPool getInstance(){
         if (mNettyClientPool == null){
@@ -29,13 +36,24 @@ public class NettyClientPool {
         return mNettyClientPool;
     }
 
-    public void build() throws Exception{
+    public NettyClientPool(){
         mBootstrap.group(mEventLoopGroup)
                 .channel(NioSocketChannel.class)
                 .option(ChannelOption.TCP_NODELAY,true)
                 .option(ChannelOption.SO_KEEPALIVE,true);
 
-        poolMap = new MyChannelPoolMap(mBootstrap,mNettyListener,Thread_Num);
+        poolMap = new AbstractChannelPoolMap<String,FixedChannelPool>(){
+
+            @Override
+            protected FixedChannelPool newPool(String s) {
+                InetSocketAddress socketAddress = null;
+                if (s.contains(":")){
+                    String[] info = s.split(":");
+                    socketAddress =  InetSocketAddress.createUnresolved(info[0],Integer.valueOf(info[1]));
+                }
+                return new FixedChannelPool(mBootstrap.remoteAddress(socketAddress),new BaseChannelPoolHandler(mNettyListener),Thread_Num);
+            }
+        };
 
     }
 
@@ -43,9 +61,7 @@ public class NettyClientPool {
         this.mNettyListener = listener;
     }
 
-    public SimpleChannelPool getPool(String remoteInfo){
-        return mNettyClientPool.poolMap.get(remoteInfo);
-    }
+
 
     public void closeAll(){
         if (poolMap != null){
@@ -56,6 +72,31 @@ public class NettyClientPool {
         if (mEventLoopGroup != null){
             mEventLoopGroup.shutdownGracefully();
         }
+    }
+
+
+    public void sendMessage(final String address, final String message){
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        final FixedChannelPool pool = poolMap.get(address);
+        Future<Channel> future = pool.acquire();
+        // 获取到实例后发消息
+        future.addListener(new FutureListener<Channel>() {
+            @Override
+            public void operationComplete(Future<Channel> channelFuture) throws Exception {
+                if (channelFuture.isSuccess()) {
+                    Channel ch = (Channel) channelFuture.getNow();
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(message);
+                    sb.append("\n");
+                    ch.writeAndFlush(sb.toString());
+                    pool.release(ch);
+                }
+            }
+        });
     }
 
 }

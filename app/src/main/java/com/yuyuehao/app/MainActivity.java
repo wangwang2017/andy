@@ -6,79 +6,85 @@ import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 
+import com.yuyuehao.andy.netty.ChannelCtx;
 import com.yuyuehao.andy.netty.NettyClientPool;
 import com.yuyuehao.andy.netty.NettyListener;
 
 import java.nio.charset.Charset;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
-import io.netty.channel.pool.SimpleChannelPool;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.FutureListener;
 
 public class MainActivity extends AppCompatActivity implements NettyListener{
 
 
     private static final String TAG = "Main";
     private EditText editText;
-
+    private static final String ECHO_REQ = "\n";
+    private ChannelCtx mChannelCtx;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         editText = (EditText)findViewById(R.id.editText);
-        //startService(new Intent(this,MyService.class));
         NettyClientPool.getInstance().setListener(this);
-        try {
-            NettyClientPool.getInstance().build();
-        } catch (Exception e) {
-            e.printStackTrace();
+    }
+
+
+    public void send10000(View view){
+        asyncWriteMessage("192.168.53.61:10000","");
+    }
+
+
+    public void send10001(View view){
+        asyncWriteMessage("192.168.53.61:10001","");
+    }
+
+    public void send10002(View view){
+        asyncWriteMessage("192.168.53.61:10002","");
+    }
+
+    public void close(View view){
+        String str = editText.getText().toString();
+        Log.d("andy","size:"+NettyClientPool.getInstance().poolMap.size());
+        if (str.equals("0")){
+            NettyClientPool.getInstance().poolMap.remove("192.168.53.61:10000");
+        }else if (str.equals("1")){
+            NettyClientPool.getInstance().poolMap.remove("192.168.53.61:10001");
+        }else if (str.equals("2")){
+            NettyClientPool.getInstance().poolMap.remove("192.168.53.61:10002");
+        }else if (str.equals("3")){
+            for (int i=0;i<1000;i++) {
+                asyncWriteMessage("192.168.53.61:10000", "什么鬼"+i);
+            }
+        }else if (str.startsWith("00|")){
+            String[] strs = str.split("|");
+            asyncWriteMessage("192.168.53.61:10000", strs[1]);
+        }else if (str.startsWith("01|")){
+            String[] strs = str.split("|");
+            asyncWriteMessage("192.168.53.61:10001", strs[1]);
+        }else if (str.startsWith("02|")){
+            String[] strs = str.split("|");
+            asyncWriteMessage("192.168.53.61:10002", strs[1]);
+        }else{
+            asyncWriteMessage("192.168.53.61:10000", str);
         }
     }
 
-
-    public void send80(View view){
-        final String ECHO_REQ = "Hello Netty.$_10000";
-        asyncWriteMessage("192.168.53.61:10000",ECHO_REQ);
-
-
+    public void asyncWriteMessage(String address, final String message) {
+        NettyClientPool.getInstance().sendMessage(address,message);
     }
 
 
-    public void send88(View view){
-        final String ECHO_REQ = "Hello Netty.$_10001";
-        asyncWriteMessage("192.168.53.61:10001",ECHO_REQ);
-    }
 
-    public void Send(View view){
-        final String str = editText.getText().toString();
-        asyncWriteMessage("192.168.53.61:10002",str);
-    }
-
-    public void asyncWriteMessage(String  address, final String message) {
-        final SimpleChannelPool pool = NettyClientPool.getInstance().getPool(address);
-        Future<Channel> future = pool.acquire();
-        // 获取到实例后发消息
-        future.addListener(new FutureListener<Channel>() {
-            @Override
-            public void operationComplete(Future<Channel> channelFuture) throws Exception {
-                if (channelFuture.isSuccess()) {
-                    Channel ch = (Channel) channelFuture.getNow();
-                    StringBuffer sb = new StringBuffer();
-                    sb.append(message);
-                    sb.append("\n");
-                    ch.writeAndFlush(sb.toString());
-                    pool.release(ch);
-                }
-            }
-        });
-    }
 
     @Override
     public void onMessageResponse(String inetSocketAddress, ByteBuf data) {
-        Log.i(TAG,inetSocketAddress+":"+data.toString(Charset.forName("utf-8")));
+        String string = data.toString(Charset.forName("utf-8"));
+        Log.i(TAG,inetSocketAddress+":"+string);
+        if (string.equals("4")){
+            asyncWriteMessage(inetSocketAddress,"response");
+        }
     }
 
     @Override

@@ -14,11 +14,7 @@
         android:allowBackup="true"
         android:label="@string/app_name"
         android:supportsRtl="true">
-        <service
-            android:name=".service.NettyService"
-            android:enabled="true"
-            android:exported="false">
-        </service>
+
         <service
             android:name=".service.NettyPoolService"
             android:enabled="true"

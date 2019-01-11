@@ -11,12 +11,9 @@ public class RemoteInfo {
     private String address;
     private int port;
 
-
-
     public RemoteInfo(){
 
     }
-
     public RemoteInfo(String address, int port) {
         this.address = address;
         this.port = port;

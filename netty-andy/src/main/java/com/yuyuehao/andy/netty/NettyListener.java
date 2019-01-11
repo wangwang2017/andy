@@ -19,12 +19,12 @@ public interface NettyListener {
      * 对消息的处理
      * @param data
      */
-    void onMessageResponse(String inetSocketAddress, ByteBuf data);
+    void onMessageResponse(String address, ByteBuf data);
 
 
 
     /**
      * 当服务状态发生变化时触发
      */
-    public void onServiceStatusConnectChanged(String inetSocketAddress, int statusCode);
+    public void onServiceStatusConnectChanged(String address, int statusCode);
 }

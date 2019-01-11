@@ -1,6 +1,6 @@
 package com.yuyuehao.andy.netty;
 
-import android.util.Log;
+import com.yuyuehao.andy.utils.LogUtils;
 
 import java.net.InetSocketAddress;
 
@@ -27,6 +27,7 @@ public class NettyPoolHandler extends SimpleChannelInboundHandler<ByteBuf>{
     public NettyPoolHandler(NettyListener nettyListener) {
         this.nettyListener = nettyListener;
     }
+    private static final String TAG = "andy";
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
@@ -37,7 +38,8 @@ public class NettyPoolHandler extends SimpleChannelInboundHandler<ByteBuf>{
         sb.append(":");
         sb.append(inetSocketAddress.getPort()+"");
         String address = sb.toString();
-        Log.d("1",address+" is active");
+
+        LogUtils.write(TAG,LogUtils.LEVEL_INFO,ctx.channel().id()+"|Active|"+address,true);
         nettyListener.onServiceStatusConnectChanged(address,NettyListener.STATUS_CONNECT_SUCCESS);
     }
 
@@ -50,7 +52,7 @@ public class NettyPoolHandler extends SimpleChannelInboundHandler<ByteBuf>{
         sb.append(":");
         sb.append(inetSocketAddress.getPort()+"");
         String address = sb.toString();
-        Log.d("1",address+" is inactive");
+        LogUtils.write(TAG,LogUtils.LEVEL_INFO,ctx.channel().id()+"|Inactive|"+address,true);
         nettyListener.onServiceStatusConnectChanged(address,NettyListener.STATUS_CONNECT_CLOSED);
     }
 
@@ -71,13 +73,12 @@ public class NettyPoolHandler extends SimpleChannelInboundHandler<ByteBuf>{
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         InetSocketAddress inetSocketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
-
         StringBuffer sb = new StringBuffer();
         sb.append(inetSocketAddress.getHostName());
         sb.append(":");
         sb.append(inetSocketAddress.getPort()+"");
         String address = sb.toString();
-        Log.d("1",address+" is exception");
+        LogUtils.write(TAG,LogUtils.LEVEL_ERROR,ctx.channel().id()+"|Exception|"+address+":"+cause.getMessage(),true);
         nettyListener.onServiceStatusConnectChanged(address,NettyListener.STATUS_CONNECT_ERROR);
         ctx.close();
         cause.printStackTrace();

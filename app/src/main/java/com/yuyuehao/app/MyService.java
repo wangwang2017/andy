@@ -175,4 +175,9 @@ public class MyService extends NettyPoolService {
             mHandler.sendMessageDelayed(msg,second);
         }
     }
+
+    @Override
+    public void onConnectSuccessful(String inetSocketAddress) {
+
+    }
 }

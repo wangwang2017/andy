@@ -4,7 +4,6 @@ import android.app.Service;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.IBinder;
-import android.util.Log;
 
 import com.yuyuehao.andy.netty.CallBack;
 import com.yuyuehao.andy.netty.ConnectThread;
@@ -49,7 +48,6 @@ public abstract class NettyPoolService extends Service implements NettyListener,
         setTCP_Params(60,15,4);
         try {
             NettyClientPool.getInstance().setListener(this);
-            NettyClientPool.getInstance().build();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -77,8 +75,8 @@ public abstract class NettyPoolService extends Service implements NettyListener,
 
 
 
-    public void asyncWriteMessage(final String remoteInfo, final String message, int number) {
-        final SimpleChannelPool pool = NettyClientPool.getInstance().getPool(remoteInfo);
+    public synchronized void asyncWriteMessage(final String remoteInfo, final String message, int number) {
+        final SimpleChannelPool pool = NettyClientPool.getInstance().poolMap.get(remoteInfo);
         Future<Channel> future = pool.acquire();
         // 获取到实例后发消息
         final int count = number-1;
@@ -93,10 +91,10 @@ public abstract class NettyPoolService extends Service implements NettyListener,
                     ch.writeAndFlush(sb.toString());
                     pool.release(ch);
                 }else{
-                    Log.d("1","startReconnect");
+                    LogUtils.write("NettyPoolServer",LogUtils.LEVEL_INFO,remoteInfo+":startConnect.",true);
                     Random rd = new Random();
-                    int seconds = rd.nextInt(3)+3;
-                    timer.newTimeout(new ConnectThread(remoteInfo,timer,message,count,NettyPoolService.this),seconds, TimeUnit.SECONDS);
+                    int seconds = rd.nextInt(11)+15;
+                    timer.newTimeout(new ConnectThread(remoteInfo,timer,count,NettyPoolService.this),seconds, TimeUnit.SECONDS);
                 }
             }
         });
