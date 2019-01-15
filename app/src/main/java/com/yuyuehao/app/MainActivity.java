@@ -5,6 +5,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.Toast;
 
 import com.yuyuehao.andy.netty.NettyClient;
 import com.yuyuehao.andy.netty.NettyClientPool;
@@ -13,6 +14,8 @@ import com.yuyuehao.andy.netty.NettyListener;
 import java.nio.charset.Charset;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelId;
 
 public class MainActivity extends AppCompatActivity implements NettyListener {
@@ -86,7 +89,16 @@ public class MainActivity extends AppCompatActivity implements NettyListener {
     }
 
     public void asyncWriteMessage(String address, final String message) {
-        NettyClient.getInstance().sendMessage(address,message);
+        NettyClient.getInstance().sendMessage(address, message, new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture channelFuture) throws Exception {
+                if (channelFuture.isSuccess()){
+                    Toast.makeText(MainActivity.this,"send ok",Toast.LENGTH_SHORT).show();
+                }else{
+                    Toast.makeText(MainActivity.this,"send failed",Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
     }
 
 

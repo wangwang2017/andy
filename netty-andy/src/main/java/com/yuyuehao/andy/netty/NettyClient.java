@@ -9,13 +9,11 @@ import java.util.concurrent.TimeUnit;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.ChannelPromise;
-import io.netty.channel.DefaultChannelPromise;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -106,7 +104,7 @@ public class NettyClient {
         }
     }
 
-    public void sendMessage(String address, final String message){
+    public void sendMessage(String address, final String message, ChannelFutureListener listener){
         if (!mChannelHashMap.containsKey(address)){
             return;
         }
@@ -115,18 +113,17 @@ public class NettyClient {
             mChannelHashMap.remove(address);
             return;
         }
-
         StringBuilder sb = new StringBuilder();
         sb.append(message);
         sb.append("\n");
-        mChannel.writeAndFlush(Unpooled.copiedBuffer(sb.toString().getBytes(CharsetUtil.UTF_8)),);
+        mChannel.writeAndFlush(Unpooled.copiedBuffer(sb.toString().getBytes(CharsetUtil.UTF_8))).addListener(listener);
     }
 
     public void closeChannel(String address){
         if (!mChannelHashMap.containsKey(address)){
             return;
         }
-        Channel mChannel = mChannelHashMap.get(address);
+        SocketChannel mChannel = mChannelHashMap.get(address);
         mChannel.closeFuture();
         mChannelHashMap.remove(address);
 
