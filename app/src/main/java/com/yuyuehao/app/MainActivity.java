@@ -6,57 +6,67 @@ import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 
-import com.yuyuehao.andy.netty.ChannelCtx;
+import com.yuyuehao.andy.netty.NettyClient;
 import com.yuyuehao.andy.netty.NettyClientPool;
 import com.yuyuehao.andy.netty.NettyListener;
 
 import java.nio.charset.Charset;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelId;
 
-public class MainActivity extends AppCompatActivity implements NettyListener{
+public class MainActivity extends AppCompatActivity implements NettyListener {
 
 
     private static final String TAG = "Main";
     private EditText editText;
     private static final String ECHO_REQ = "\n";
-    private ChannelCtx mChannelCtx;
+    private boolean isSendKey;
+    private ChannelId channelId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         editText = (EditText)findViewById(R.id.editText);
-        NettyClientPool.getInstance().setListener(this);
+        NettyClient.getInstance().setNettyListener(this);
+
     }
 
 
     public void send10000(View view){
-        asyncWriteMessage("192.168.53.61:10000","");
+        connect("192.168.53.61:10000");
     }
 
 
     public void send10001(View view){
-        asyncWriteMessage("192.168.53.61:10001","");
+        connect("192.168.53.61:10001");
+        //asyncWriteMessage("192.168.53.61:10001", createConnectJson());
     }
 
     public void send10002(View view){
-        asyncWriteMessage("192.168.53.61:10002","");
+        connect("192.168.53.61:10002");
+        //asyncWriteMessage("192.168.53.61:10002", createConnectJson());
     }
 
     public void close(View view){
         String str = editText.getText().toString();
         Log.d("andy","size:"+NettyClientPool.getInstance().poolMap.size());
         if (str.equals("0")){
-            NettyClientPool.getInstance().poolMap.remove("192.168.53.61:10000");
+           NettyClient.getInstance().closeChannel("192.168.53.61:10000");
         }else if (str.equals("1")){
-            NettyClientPool.getInstance().poolMap.remove("192.168.53.61:10001");
+            NettyClient.getInstance().closeChannel("192.168.53.61:10001");
         }else if (str.equals("2")){
-            NettyClientPool.getInstance().poolMap.remove("192.168.53.61:10002");
+            NettyClient.getInstance().closeChannel("192.168.53.61:10002");
         }else if (str.equals("3")){
-            for (int i=0;i<1000;i++) {
-                asyncWriteMessage("192.168.53.61:10000", "什么鬼"+i);
-            }
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    for (int i=0;i<1000;i++) {
+                        asyncWriteMessage("192.168.53.61:10000", "什么鬼"+i);
+                    }
+                }
+            }).start();
         }else if (str.startsWith("00|")){
             String[] strs = str.split("|");
             asyncWriteMessage("192.168.53.61:10000", strs[1]);
@@ -71,8 +81,12 @@ public class MainActivity extends AppCompatActivity implements NettyListener{
         }
     }
 
+    private void connect(String address){
+        NettyClient.getInstance().connect(address);
+    }
+
     public void asyncWriteMessage(String address, final String message) {
-        NettyClientPool.getInstance().sendMessage(address,message);
+        NettyClient.getInstance().sendMessage(address,message);
     }
 
 
@@ -87,8 +101,4 @@ public class MainActivity extends AppCompatActivity implements NettyListener{
         }
     }
 
-    @Override
-    public void onServiceStatusConnectChanged(String inetSocketAddress, int statusCode) {
-        Log.i(TAG,inetSocketAddress+":"+"statusCode = "+statusCode);
-    }
 }

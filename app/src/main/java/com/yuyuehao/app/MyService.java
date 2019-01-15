@@ -1,114 +1,114 @@
 package com.yuyuehao.app;
 
-import android.os.Handler;
-import android.os.Message;
+import android.content.Intent;
+import android.os.IBinder;
 import android.util.Log;
 
 import com.google.gson.Gson;
+import com.yuyuehao.andy.netty.NettyClientPool;
 import com.yuyuehao.andy.service.NettyPoolService;
 
 import java.net.InetSocketAddress;
+import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.util.CharsetUtil;
+import io.netty.channel.Channel;
 
 import static com.yuyuehao.andy.utils.IpNetAddress.getIpAddressAndSubnettest;
 
 public class MyService extends NettyPoolService {
 
-    private List<String> list = new ArrayList<>();
-    private List<InetSocketAddress> list1 = new ArrayList<>();
-    private boolean connect = true;
+    private Map<String,Boolean> isInit = new HashMap<>();
+    private String addr1 = "10.0.0.42:13000";
 
 
-    private final static int Next = 1;
-
-    private Handler mHandler = new Handler(){
-        @Override
-        public void handleMessage(Message msg) {
-            super.handleMessage(msg);
-            if (msg.what == Next){
-                Log.d("1",(String)msg.obj);
-                asyncWriteMessage((String)msg.obj,createConnectJson(),3);
-            }
-        }
-    };
-
-
-    @Override
-    public void onMessageResponse(String inetSocketAddress, ByteBuf data) {
-        Log.d("1","receiver:"+inetSocketAddress);
-
-        String json = data.toString(CharsetUtil.UTF_8);
-        Log.d("1","json:"+json);
-        for (int i = 0; i <list.size() ; i++) {
-            Log.d("1","list-<"+i+">:"+list.get(i).toString());
-        }
-        if (connect) {
-            if (list.contains(inetSocketAddress)) {
-                if (json.contains("ok")){
-
-                }else{
-                    String strs[] = json.split("\\|");
-                    Log.d("1","new,"+strs[1]+":"+strs[2]);
-                    closePoolConnection(inetSocketAddress);
-                    InetSocketAddress address1 = InetSocketAddress.createUnresolved(strs[1], Integer.valueOf(strs[2]));
-                    if (!list.contains(address1)) {
-                        list.add(address1.toString());
-                    }
-                    asyncWriteMessage(address1.toString(),createConnectJson(),3);
-                }
-            }
-        }
+    public MyService() {
     }
 
 
-
     @Override
-    public void onServiceStatusConnectChanged(final String inetSocketAddress, int statusCode) {
-        if (statusCode == 0){
-            Log.d("1",inetSocketAddress+" failed.");
-            try {
-                if (list.contains(inetSocketAddress)) {
-                    if (list.size() <= 1) {
-                        closePoolConnection(inetSocketAddress);
-                        Thread.sleep(5000);
-                        asyncWriteMessage(inetSocketAddress, createConnectJson(), Integer.MAX_VALUE);
-                    } else {
-                        int a = list.indexOf(inetSocketAddress);
-                        Random rd = new Random();
-                        int second = rd.nextInt(21)*1000;
-                        Message msg = Message.obtain();
-                        msg.what = Next;
-                        if (list.size()-1 > a){
-                            Log.d("1",second+",next:"+list.get(a+1).toString());
-                            msg.obj = list.get(a+1);
-                        }else{
-                            Log.d("1",second+",start:"+list.get(0).toString());
-                            msg.obj = list.get(0);
-                        }
-                        mHandler.sendMessageDelayed(msg,second);
-                    }
-                }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
-        }else if (statusCode == 1){
-            Log.d("1","address:"+inetSocketAddress+",success.");
-        }else if (statusCode == -1){
-            Log.d("1","address:"+inetSocketAddress+",exception.");
-        }
+    public void onCreate() {
+        super.onCreate();
 
     }
 
+    @Override
+    public IBinder onBind(Intent intent) {
+        // TODO: Return the communication channel to the service.
+        throw new UnsupportedOperationException("Not yet implemented");
+    }
 
+    @Override
+    protected void init() {
+        NettyClientPool.getInstance().setListener(this);
+        NettyClientPool.getInstance().setCallBack(this);
+        NettyClientPool.getInstance().setNettyPoolCallback(this);
+        connect(addr1);
+
+    }
+
+    private void sendMessage(String address,String message){
+        NettyClientPool.getInstance().sendMessage(address, message);
+    }
+
+    private void connect(String address){
+        NettyClientPool.getInstance().connect(address);
+    }
+
+    @Override
+    protected void getPublicNetWorkIp(String s) {
+        Log.i("MyService","getPublicNetWorkIp:"+s);
+    }
+
+    @Override
+    public void onCompletionTimerTask(String address) {
+        Log.i("MyService","onCompletionTimerTask:"+address);
+    }
+
+    @Override
+    public void nettyCreate(Channel channel) {
+        Log.i("MyService","nettyCreate:"+channel.id());
+        isInit.put(addr1,true);
+
+    }
+
+    @Override
+    public void nettyAcquired(Channel channel) {
+        Log.i("MyService","nettyAcquired:"+channel.id());
+        InetSocketAddress inetSocketAddress = (InetSocketAddress) channel.remoteAddress();
+        StringBuffer sb = new StringBuffer();
+        sb.append(inetSocketAddress.getHostName());
+        sb.append(":");
+        sb.append(inetSocketAddress.getPort()+"");
+        String address = sb.toString();
+        isInit.put(address,false);
+    }
+
+    @Override
+    public void nettyReleased(Channel channel) {
+        Log.i("MyService","nettyReleased:"+channel.id());
+        InetSocketAddress inetSocketAddress = (InetSocketAddress) channel.remoteAddress();
+        StringBuffer sb = new StringBuffer();
+        sb.append(inetSocketAddress.getHostName());
+        sb.append(":");
+        sb.append(inetSocketAddress.getPort()+"");
+        String address = sb.toString();
+        if (channel.isActive() && isInit.get(address) != null && isInit.get(address)){
+            isInit.put(address,false);
+            sendMessage(address,createConnectJson());
+        }
+    }
+
+    @Override
+    public void onMessageResponse(String address, ByteBuf data) {
+        Log.i("MyService","onMessageResponse|"+address+"|"+data.toString(Charset.forName("utf-8")));
+    }
 
 
     private String createConnectJson(){
@@ -141,43 +141,5 @@ public class MyService extends NettyPoolService {
         return firstJson;
     }
 
-    @Override
-    protected void init() {
-        String address = "192.168.53.16:13000";
-        asyncWriteMessage(address,createConnectJson(),Integer.MAX_VALUE);
-        if (!list.contains(address)) {
-            list.add(address);
-        }
-    }
 
-    @Override
-    protected void getPublicNetWorkIp(String s) {
-        Log.d("1","s:"+s);
-    }
-
-
-    @Override
-    public void onCompletionTimerTask(String inetSocketAddress) {
-        Log.d("1","size:"+list.size());
-        if (list.contains(inetSocketAddress)){
-            int i = list.indexOf(inetSocketAddress);
-            Random rd = new Random();
-            int second = rd.nextInt(21)*1000;
-            Message msg = Message.obtain();
-            msg.what = Next;
-            if (list.size()-1 > i){
-                Log.d("1",second+",next:"+list.get(i+1).toString());
-                msg.obj = list.get(i+1);
-            }else{
-                Log.d("1",second+",start:"+list.get(0).toString());
-                msg.obj = list.get(0);
-            }
-            mHandler.sendMessageDelayed(msg,second);
-        }
-    }
-
-    @Override
-    public void onConnectSuccessful(String inetSocketAddress) {
-
-    }
 }

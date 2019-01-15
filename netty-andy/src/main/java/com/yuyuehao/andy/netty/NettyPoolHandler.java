@@ -19,11 +19,13 @@ import io.netty.util.CharsetUtil;
  * on 2018-08-15
  */
 @ChannelHandler.Sharable
-public class NettyPoolHandler extends SimpleChannelInboundHandler<ByteBuf>{
+public class NettyPoolHandler extends SimpleChannelInboundHandler<ByteBuf> {
 
     private NettyListener nettyListener;
     private static final ByteBuf HEARTBEAT_SEQUENCE = Unpooled
             .unreleasableBuffer(Unpooled.copiedBuffer("\n", CharsetUtil.UTF_8));
+
+
     public NettyPoolHandler(NettyListener nettyListener) {
         this.nettyListener = nettyListener;
     }
@@ -31,29 +33,28 @@ public class NettyPoolHandler extends SimpleChannelInboundHandler<ByteBuf>{
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-
         InetSocketAddress inetSocketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
         StringBuffer sb = new StringBuffer();
         sb.append(inetSocketAddress.getHostName());
         sb.append(":");
         sb.append(inetSocketAddress.getPort()+"");
         String address = sb.toString();
-
         LogUtils.write(TAG,LogUtils.LEVEL_INFO,ctx.channel().id()+"|Active|"+address,true);
-        nettyListener.onServiceStatusConnectChanged(address,NettyListener.STATUS_CONNECT_SUCCESS);
+        //nettyListener.onNettyActive(address,ctx);
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         InetSocketAddress inetSocketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
-
         StringBuffer sb = new StringBuffer();
         sb.append(inetSocketAddress.getHostName());
         sb.append(":");
         sb.append(inetSocketAddress.getPort()+"");
         String address = sb.toString();
         LogUtils.write(TAG,LogUtils.LEVEL_INFO,ctx.channel().id()+"|Inactive|"+address,true);
-        nettyListener.onServiceStatusConnectChanged(address,NettyListener.STATUS_CONNECT_CLOSED);
+        NettyClientPool.getInstance().poolMap.remove(address);
+        Thread.sleep(5000);
+        NettyClientPool.getInstance().connect(address);
     }
 
 
@@ -79,7 +80,7 @@ public class NettyPoolHandler extends SimpleChannelInboundHandler<ByteBuf>{
         sb.append(inetSocketAddress.getPort()+"");
         String address = sb.toString();
         LogUtils.write(TAG,LogUtils.LEVEL_ERROR,ctx.channel().id()+"|Exception|"+address+":"+cause.getMessage(),true);
-        nettyListener.onServiceStatusConnectChanged(address,NettyListener.STATUS_CONNECT_ERROR);
+        //nettyListener.onNettyException(address);
         ctx.close();
         cause.printStackTrace();
     }
@@ -94,4 +95,6 @@ public class NettyPoolHandler extends SimpleChannelInboundHandler<ByteBuf>{
         String address = sb.toString();
         nettyListener.onMessageResponse(address,o);
     }
+
+
 }

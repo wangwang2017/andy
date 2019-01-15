@@ -1,5 +1,6 @@
 package com.yuyuehao.andy.netty;
 
+import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;
 
 import io.netty.channel.ChannelHandler;
@@ -9,6 +10,8 @@ import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.DelimiterBasedFrameDecoder;
 import io.netty.handler.codec.Delimiters;
+import io.netty.handler.codec.string.StringDecoder;
+import io.netty.handler.codec.string.StringEncoder;
 import io.netty.handler.timeout.IdleStateHandler;
 
 /**
@@ -35,5 +38,7 @@ public class NettyPoolClientInitializer extends ChannelInitializer<SocketChannel
         pipeline.addLast("framer", new DelimiterBasedFrameDecoder(30 * 1024, Delimiters.lineDelimiter()));
         pipeline.addLast(new IdleStateHandler(15, 0, 0, TimeUnit.SECONDS));
         pipeline.addLast(new NettyPoolHandler(mNettyListener));
+        pipeline.addLast(new StringEncoder(Charset.forName("utf-8")));
+        pipeline.addLast(new StringDecoder(Charset.forName("utf-8")));
     }
 }

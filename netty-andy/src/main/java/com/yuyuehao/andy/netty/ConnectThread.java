@@ -6,7 +6,7 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import io.netty.channel.Channel;
-import io.netty.channel.pool.SimpleChannelPool;
+import io.netty.channel.pool.FixedChannelPool;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
@@ -35,46 +35,28 @@ public class ConnectThread implements TimerTask{
 
     @Override
     public void run(Timeout timeout) throws Exception {
-        final SimpleChannelPool pool =  NettyClientPool.getInstance().poolMap.get(address);
-        Future<Channel> f = pool.acquire();
+        final FixedChannelPool pool =  NettyClientPool.getInstance().poolMap.get(address);
+        final Future<Channel> f = pool.acquire();
         f.addListener(new FutureListener<Channel>(){
-            @Override
-            public void operationComplete(Future<Channel> channelFuture) throws Exception {
-                if (channelFuture.isSuccess()) {
-                    Channel ch = channelFuture.getNow();
-                    StringBuffer sb = new StringBuffer();
-                    sb.append("\n");
-                    ch.writeAndFlush(sb.toString());
-                    callBack.onConnectSuccessful(address);
-                    LogUtils.write("NettyPoolServer",LogUtils.LEVEL_INFO,address.toString()+" connect successful.",true);
-                    pool.release(ch);
-                }else{
-                    Random rd = new Random();
-                    int seconds = rd.nextInt(11) + 15;
-                    if (count == 0){
-                        callBack.onCompletionTimerTask(address);
-                        LogUtils.write("NettyPoolServer", LogUtils.LEVEL_INFO, address.toString() + " connect failed,circulation end.", true);
-                    }
-                    if (count >0 && count <= 2) {
-                        count--;
-                        mTimer.newTimeout(ConnectThread.this, seconds, TimeUnit.SECONDS);
-                        LogUtils.write("NettyPoolServer", LogUtils.LEVEL_INFO, address.toString() + " connect failed," + seconds + " seconds reconnect.", true);
-                    }
-
-                    if (count>6){
-                        mTimer.newTimeout(ConnectThread.this, seconds, TimeUnit.SECONDS);
-                        LogUtils.write("NettyPoolServer", LogUtils.LEVEL_INFO, address.toString() + " connect failed," + seconds + " seconds reconnect.", true);
-                    }
-                }
-            }
+           @Override
+           public void operationComplete(Future<Channel> channelFuture) throws Exception {
+               if (channelFuture.isSuccess()){
+                   LogUtils.write("NettyPoolServer",LogUtils.LEVEL_INFO,address.toString()+" connect successful.",true);
+                   pool.release(f.getNow());
+                   return;
+               }else{
+                  if (count >0){
+                      Random rd = new Random();
+                      int seconds = rd.nextInt(11) + 15;
+                      mTimer.newTimeout(ConnectThread.this, seconds, TimeUnit.SECONDS);
+                      count--;
+                      LogUtils.write("NettyPoolServer", LogUtils.LEVEL_INFO, address.toString() + " connect failed," + seconds + " seconds reconnect,count = "+count, true);
+                  }else{
+                      LogUtils.write("NettyPoolServer", LogUtils.LEVEL_INFO, address.toString() + " connect failed,circulation end.", true);
+                      callBack.onCompletionTimerTask(address);
+                  }
+               }
+           }
         });
     }
-
-
-
-
-
-
-
-
 }

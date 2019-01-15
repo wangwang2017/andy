@@ -1,9 +1,5 @@
 package com.yuyuehao.andy.netty;
 
-import android.util.Log;
-
-import com.yuyuehao.andy.utils.LogUtils;
-
 import io.netty.channel.Channel;
 import io.netty.channel.pool.ChannelPoolHandler;
 import io.netty.channel.socket.SocketChannel;
@@ -20,10 +16,12 @@ public class BaseChannelPoolHandler implements ChannelPoolHandler {
 
 
     private NettyListener mNettyListener;
+    private NettyPoolCallback mNettyPoolCallback;
 
 
-    public BaseChannelPoolHandler(NettyListener mNettyListener){
+    public BaseChannelPoolHandler(NettyListener mNettyListener,NettyPoolCallback mNettyPoolCallback){
         this.mNettyListener = mNettyListener;
+        this.mNettyPoolCallback = mNettyPoolCallback;
     }
 
     /**
@@ -33,22 +31,26 @@ public class BaseChannelPoolHandler implements ChannelPoolHandler {
     @Override
     public void channelCreated(Channel channel) throws Exception {
 
-        Log.d("NettyPoolServer", "channelCreated" + "|" + channel.id());
+
         SocketChannel ch = (SocketChannel) channel;
         ch.config().setKeepAlive(true);
         ch.config().setTcpNoDelay(true);
         channel.pipeline()
                 .addLast(new NettyPoolClientInitializer(mNettyListener));
+        mNettyPoolCallback.nettyCreate(channel);
+
     }
 
     @Override
     public void channelReleased(Channel ch) throws Exception {
-        LogUtils.write("NettyPoolServer",LogUtils.LEVEL_INFO,ch.id()+":"+ch.remoteAddress().toString()+ " released",true);
+        //LogUtils.write("NettyPoolServer",LogUtils.LEVEL_INFO,ch.id()+":"+ch.remoteAddress().toString()+ " released",true);
+        mNettyPoolCallback.nettyReleased(ch);
     }
 
     @Override
     public void channelAcquired(Channel ch) throws Exception {
-        LogUtils.write("NettyPoolServer",LogUtils.LEVEL_INFO,ch.id()+":"+ch.remoteAddress().toString()+ " acquired",true);
+        //LogUtils.write("NettyPoolServer",LogUtils.LEVEL_INFO,ch.id()+":"+ch.remoteAddress().toString()+ " acquired",true);
+        mNettyPoolCallback.nettyAcquired(ch);
     }
 
 }
