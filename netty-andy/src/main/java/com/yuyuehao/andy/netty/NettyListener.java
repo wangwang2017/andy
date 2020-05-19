@@ -20,4 +20,6 @@ public interface NettyListener {
      * 当服务状态发生变化时触发
      */
 
+    void onInactive(String address);
+
 }

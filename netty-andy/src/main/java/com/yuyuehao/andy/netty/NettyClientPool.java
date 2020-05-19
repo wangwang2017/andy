@@ -34,6 +34,9 @@ public class NettyClientPool {
     private NettyListener mNettyListener;
     private NettyPoolCallback mNettyPoolCallback;
     private CallBack mCallBack;
+    public volatile boolean closeAllKey = false;
+
+
     public final HashedWheelTimer mTimer = new HashedWheelTimer();
 
     public AbstractChannelPoolMap<String,FixedChannelPool> poolMap;
@@ -79,7 +82,14 @@ public class NettyClientPool {
         this.mCallBack = callback;
     }
 
-    public void closeAll(){
+    public void closeAllPool(){
+        if (poolMap != null){
+            poolMap.close();
+            closeAllKey = true;
+        }
+    }
+
+    public void closeGroup(){
         if (poolMap != null){
             if (poolMap.size() != 0){
                 poolMap.close();

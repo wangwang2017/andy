@@ -157,6 +157,6 @@ public abstract class NettyPoolService extends Service implements NettyListener,
     @Override
     public void onDestroy() {
         super.onDestroy();
-        NettyClientPool.getInstance().closeAll();
+        NettyClientPool.getInstance().closeGroup();
     }
 }

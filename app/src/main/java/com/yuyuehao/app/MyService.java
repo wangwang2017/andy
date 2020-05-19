@@ -110,6 +110,11 @@ public class MyService extends NettyPoolService {
         Log.i("MyService","onMessageResponse|"+address+"|"+data.toString(Charset.forName("utf-8")));
     }
 
+    @Override
+    public void onInactive(String address) {
+
+    }
+
 
     private String createConnectJson(){
         LinkedHashMap<String,String> map = new LinkedHashMap<String, String>();

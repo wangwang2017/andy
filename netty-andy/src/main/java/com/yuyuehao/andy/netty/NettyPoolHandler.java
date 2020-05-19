@@ -54,7 +54,8 @@ public class NettyPoolHandler extends SimpleChannelInboundHandler<ByteBuf> {
         LogUtils.write(TAG,LogUtils.LEVEL_INFO,ctx.channel().id()+"|Inactive|"+address,true);
         NettyClientPool.getInstance().poolMap.remove(address);
         Thread.sleep(5000);
-        NettyClientPool.getInstance().connect(address);
+        nettyListener.onInactive(address);
+
     }
 
 
